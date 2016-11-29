@@ -16,6 +16,8 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ) {
 	//start with default values
 	DefaultValues();
 
+	std::cout << "STARTING TO DEPLOY!!\n";
+
 	scenarioSizeX = mapSizeX;
 	scenarioSizeZ = mapSizeZ;
 
@@ -47,9 +49,9 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ) {
 	}*/
 
 	//Get map size        
-	spawnPositionX = (int)floor(scenarioSizeX - 1);
-	//spawnPositionZ = (int)Mathf.Floor(scenarioSizeZ - 1));//anywhere
-	spawnPositionZ = (int)floor(scenarioSizeZ - (scenarioSizeZ - 2));//to make agents start near the bottom
+	spawnPositionX = (int)round(scenarioSizeX - 1);
+	//spawnPositionZ = (int)round(scenarioSizeZ - 1));//anywhere
+	spawnPositionZ = (int)round(scenarioSizeZ - (scenarioSizeZ - 2));//to make agents start near the bottom
 
 	//@TODO: see how to draw the obstacles and interact with them
 	//allObstacles = GameObject.FindGameObjectsWithTag("Obstacle");
@@ -81,16 +83,19 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ) {
 		//ReadOBJFile();
 		DrawCells();
 		PlaceAuxins();
-
+		//std::cout << cells.size();
+		
 		//instantiante some goals
 		DrawGoal("Restaurant", 3, 0, 18);
 		DrawGoal("Theater", 27, 0, 17);
 		DrawGoal("Stadium", 5, 0, 3);
 		DrawGoal("AppleStore", 25, 0, 5);
-
+		for (int p = 0; p < signs.size(); p++) {
+			std::cout << signs[p].GetGoal()->name << "\n";
+		}
 		//instantiante some signs
-		DrawSign(15, 0, 10, &goals[0], 0.7);
-		DrawSign(23, 0, 11, &goals[2], 0.9);
+		//DrawSign(15, 0, 10, &goals[0], 0.7);
+		//DrawSign(23, 0, 11, &goals[2], 0.9);
 
 		//std::cout << goals.size() << " -- " << signs.size();
 
@@ -106,7 +111,7 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ) {
 			}
 
 			//sort out a cell
-			int cellIndex = (int)floor(RandomFloat(0, cells.size() - 1));
+			int cellIndex = (int)round(RandomFloat(0, cells.size() - 1));
 
 			//generate the agent position
 			float x = RandomFloat(cells[cellIndex].posX - cellRadius, cells[cellIndex].posX + cellRadius);
@@ -158,6 +163,12 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ) {
 	/*for (int i = 0; i < agents.size(); i++) {
 		std::cout << agents[i].name << "\n";
 	}*/
+	
+	for (int p = 0; p < signs.size(); p++) {
+		//std::cout << signs[p].GetGoal()->name << "\n";
+	}
+
+	std::cout << "STARTING TO RUN!!\n";
 
 	//initiate the timer
 	t = clock();
@@ -183,7 +194,7 @@ void Simulation::DefaultValues() {
 	//save config file?
 	saveConfigFile = false;
 	//load config file?
-	loadConfigFile = true;
+	loadConfigFile = false;
 	//all simulation files directory
 	allSimulations = "Simulations/";
 	//config filename
@@ -383,22 +394,22 @@ void Simulation::LoadConfigFile() {
 				//check if there is an obstacle in this position
 				while (CheckObstacle(newPositionX, newPositionY, newPositionZ, "Obstacle", 0.1f)) {
 					//if there is an obstacle, test with new positions
-					if (!CheckObstacle(newPositionX+grain, newPositionY, newPositionZ, "Obstacle", 0.1f))
+					if (!CheckObstacle(newPositionX + grain, newPositionY, newPositionZ, "Obstacle", 0.1f))
 					{
 						newPositionX += grain;
 						break;
 					}
-					else if (!CheckObstacle(newPositionX, newPositionY, newPositionZ-grain, "Obstacle", 0.1f))
+					else if (!CheckObstacle(newPositionX, newPositionY, newPositionZ - grain, "Obstacle", 0.1f))
 					{
 						newPositionZ -= grain;
 						break;
 					}
-					else if (!CheckObstacle(newPositionX-grain, newPositionY, newPositionZ, "Obstacle", 0.1f))
+					else if (!CheckObstacle(newPositionX - grain, newPositionY, newPositionZ, "Obstacle", 0.1f))
 					{
 						newPositionX -= grain;
 						break;
 					}
-					else if (!CheckObstacle(newPositionX, newPositionY, newPositionZ+grain, "Obstacle", 0.1f))
+					else if (!CheckObstacle(newPositionX, newPositionY, newPositionZ + grain, "Obstacle", 0.1f))
 					{
 						newPositionZ += grain;
 						break;
@@ -434,7 +445,7 @@ void Simulation::LoadConfigFile() {
 					newAgent.SetCell(&cells[cellIndex]);
 				}
 				else {
-					std::cout << newAgent.name << ": " << "Celula nao encontrada! CellNameX: " + std::to_string(nameX) + " -- CellNameZ: " 
+					std::cout << newAgent.name << ": " << "Celula nao encontrada! CellNameX: " + std::to_string(nameX) + " -- CellNameZ: "
 						+ std::to_string(nameZ) + "\n";
 				}
 				//agent radius
@@ -453,7 +464,7 @@ void Simulation::LoadConfigFile() {
 						//add a goal
 						newAgent.go.push_back(&goals[std::stoi(entries[j])]);
 						//add intention
-						newAgent.intentions.push_back(std::stof(entries[j+1]));
+						newAgent.intentions.push_back(std::stof(entries[j + 1]));
 						//add a random desire
 						newAgent.AddDesire(RandomFloat(0, 1));
 					}
@@ -469,82 +480,116 @@ void Simulation::LoadConfigFile() {
 	} while (line != "" && !line.empty());
 	// Done reading, close the reader and return true to broadcast success
 	theReader.close();
-	for (int i = 0; i < agents.size(); i++) {
+	/*for (int i = 0; i < agents.size(); i++) {
 		std::cout << agents[i].name << "\n";
-	}
+	}*/
+	/*for (int i = 0; i < goals.size(); i++) {
+		std::cout << goals[i].name << "\n";
+	}*/
 
-	/*
-	// Create a new StreamReader, tell it which file to read and what encoding the file
+
 	//signs file, with signs and their appeals
-	theReader = new StreamReader(signsFilename, System.Text.Encoding.Default);
+	theReader.open(signsFilename);
 
-	using (theReader)
+	lineCount = 1;
+	// While there's lines left in the text file, do this:
+	do
 	{
-		int lineCount = 1;
-		// While there's lines left in the text file, do this:
-		do
+		std::getline(theReader, line);
+
+		if (line != "" && !line.empty())
 		{
-			line = theReader.ReadLine();
-
-			if (line != null)
+			//in first line, it is the qnt signs
+			if (lineCount == 1)
 			{
-				//in first line, it is the qnt agents
-				if (lineCount == 1)
-				{
-					qntSigns = System.Int32.Parse(line);
-				}
-				else
-				{
-					//each line 1 agent, separated by " "
-					string[] entries = line.Split(' ');
+				qntSigns = std::stoi(line);
+			}
+			else
+			{
+				//each line 1 agent, separated by " "
+				std::vector<std::string> entries;
+				Split(line, ' ', entries);
 
-					//sign position
-					Vector3 newPosition = new Vector3(0f, 0f, 0f);
-					//define position based on obstacle vertices
-					if (allObstacles.Length > 0) {
-						if (allObstacles.Length == 1)
-						{
-							//check group vertices to find the corners
-							newPosition = verticesObstacles[(int)Mathf.Floor(Random.Range(0, verticesObstacles.Length)) - 1];
+				//sign position
+				float newPositionX = 0;
+				float newPositionY = 0;
+				float newPositionZ = 0;
+				//define position based on obstacle vertices
+				//@TODO: see how to draw the obstacles and interact with them
+				//if (allObstacles.Length > 0) {
+				if(true){
+					//if (allObstacles.Length == 1)
+					if(true)
+					{
+						//check group vertices to find the corners
+						newPositionX = verticesObstaclesX[round(RandomFloat(0, verticesObstaclesX.size()) - 1)];
+						//newPositionY = verticesObstaclesY[round(RandomFloat(0, verticesObstaclesY.size()) - 1)]; //y is zero
+						newPositionZ = verticesObstaclesZ[round(RandomFloat(0, verticesObstaclesZ.size()) - 1)];
+						bool newPositionOK = true;
 
-							//while newPosition is inside the already used positions, we try again
-							while (positionsSigns.Contains(newPosition))
-							{
-								newPosition = verticesObstacles[(int)Mathf.Floor(Random.Range(0, verticesObstacles.Length)) - 1];
+						//check every sign
+						for (int p = 0; p < signs.size(); p++) {
+							if (signs[p].posX == newPositionX && signs[p].posZ == newPositionZ) {
+								newPositionOK = false;
+								break;
 							}
 						}
-						else
+
+						//while newPosition is inside the already used positions, we try again
+						while (!newPositionOK)
 						{
-							//check group vertices to find the corners
-							newPosition = verticesObstacles[(int)Mathf.Floor(Random.Range(0, verticesObstacles.Length)) - 1];
-							//Debug.Log("Position: "+newPosition+" -- "+positionsSigns.Contains(newPosition)+"--Index: "+index);
-							//while newPosition is inside the already used positions, we try again
-							//while (positionsSigns.Contains(newPosition))
-							//{
-							//index = (int)Mathf.Floor(Random.Range(0, allObstacles.Length));
-							//vertices = allObstacles[index].GetComponent<MeshFilter>().mesh.vertices;
-							//newPosition = vertices[(int)Mathf.Floor(Random.Range(0, vertices.Length))]; //+ new Vector3(500f, 0f, 500f)
-							//Debug.Log("While...."+"Position: " + newPosition + " -- " + positionsSigns.Contains(newPosition) + "--Index: " + index); break;
-							//}
+							newPositionX = verticesObstaclesX[round(RandomFloat(0, verticesObstaclesX.size()) - 1)];
+							//newPositionY = verticesObstaclesY[round(RandomFloat(0, verticesObstaclesY.size()) - 1)]; //y is zero
+							newPositionZ = verticesObstaclesZ[round(RandomFloat(0, verticesObstaclesZ.size()) - 1)];
+
+							newPositionOK = true;
+
+							//check every sign
+							for (int p = 0; p < signs.size(); p++) {
+								if (signs[p].posX == newPositionX && signs[p].posZ == newPositionZ) {
+									newPositionOK = false;
+									break;
+								}
+							}
 						}
 					}
+					/*else
+					{
+						//check group vertices to find the corners
+						newPosition = verticesObstacles[(int)Mathf.Floor(Random.Range(0, verticesObstacles.Length)) - 1];
+						//Debug.Log("Position: "+newPosition+" -- "+positionsSigns.Contains(newPosition)+"--Index: "+index);
+						//while newPosition is inside the already used positions, we try again
+						//while (positionsSigns.Contains(newPosition))
+						//{
+						//index = (int)Mathf.Floor(Random.Range(0, allObstacles.Length));
+						//vertices = allObstacles[index].GetComponent<MeshFilter>().mesh.vertices;
+						//newPosition = vertices[(int)Mathf.Floor(Random.Range(0, vertices.Length))]; //+ new Vector3(500f, 0f, 500f)
+						//Debug.Log("While...."+"Position: " + newPosition + " -- " + positionsSigns.Contains(newPosition) + "--Index: " + index); break;
+						//}
+					}*/
+				}
 
-					//will file bring sign goal
-					GameObject signGoal = GameObject.Find("Goal" + (System.Convert.ToSingle(entries[1]) - 1));
-
-					DrawSign(newPosition, signGoal, System.Convert.ToSingle(entries[2]));
-
-					//add this position in the list, so we dont draw here again
-					positionsSigns.Add(newPosition);
+				//will file bring sign goal
+				std::string signGoalName = "Goal" + (std::stoi(entries[1]) - 1);
+				//find its goal
+				for (int g = 0; g < goals.size(); g++) {
+					if (goals[g].name == signGoalName) {
+						DrawSign(newPositionX, newPositionY, newPositionZ, &goals[g], std::stof(entries[2]));
+					}
 				}
 			}
-			lineCount++;
-		} while (line != null);
-		// Done reading, close the reader and return true to broadcast success
-		theReader.Close();
-		//Need it no more
-		positionsSigns.Clear();
+		}
+		lineCount++;
+	} while (line != "" && !line.empty());
+	// Done reading, close the reader and return true to broadcast success
+	theReader.close();
+
+	/*for (int p = 0; p < goals.size(); p++) {
+		std::cout << goals[p].name << "\n";
 	}*/
+	for (int p = 0; p < signs.size(); p++) {
+		std::cout << signs[p].GetGoal()->name << "\n";
+	}
 }
 
 //load cells and auxins and obstacles and goals (static stuff)
@@ -692,10 +737,12 @@ void Simulation::LoadCellsAuxins() {
 void Simulation::DrawGoal(std::string goalName, float goalPositionX, float goalPositionY, float goalPositionZ)
 {
 	Goal newGoal(goalName, goalPositionX, goalPositionY, goalPositionZ);
+	//QUANDO DA PUSH_BACK, TALVEZ O ENDEREÇO DE MEMORIA MUDE???
 	goals.push_back(newGoal);
-
+	
 	//draw a sign on this position too, so if the agent is looking for around, he finds it
-	DrawSign(goalPositionX, goalPositionY, goalPositionZ, &newGoal, 1);
+	//@TODO: AQUI EH O PROBLEMA, ONDE ESTA "ZERANDO" OS GOALS DAS SIGNS. TALVEZ POR CAUSA DO ENDEREÇO DE MEMORIA NA CHAMADA DA FUNCAO???
+	DrawSign(goalPositionX, goalPositionY, goalPositionZ, &goals[goals.size()-1], 1);
 }
 
 //draw a sign
@@ -704,6 +751,7 @@ void Simulation::DrawSign(float signPositionX, float signPositionY, float signPo
 	newSign.SetGoal(signGoal);
 	newSign.SetAppeal(signAppeal);
 	signs.push_back(newSign);
+	//std::cout << signs[signs.size()-1].GetGoal()->name << "\n";
 }
 
 //draw cells
@@ -755,7 +803,7 @@ void Simulation::PlaceAuxins() {
 	densityToQnt *= (cellRadius * 2) / (2.0f * auxinRadius);
 	densityToQnt *= (cellRadius * 2) / (2.0f * auxinRadius);
 
-	qntAuxins = (int)floor(densityToQnt);
+	qntAuxins = (int)round(densityToQnt);
 
 	//for each cell, we generate his auxins
 	for (int c = 0; c < cells.size(); c++)
