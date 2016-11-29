@@ -8,10 +8,11 @@ Agent::Agent()
 }
 
 //initialize with its new position
-Agent::Agent(float newPosX, float newPosY, float newPosZ) {
+Agent::Agent(float newPosX, float newPosY, float newPosZ, std::string newName) {
 	posX = newPosX;
 	posY = newPosY;
 	posZ = newPosZ;
+	name = newName;
 
 	//set inicial values
 	valorDenominadorW = 0;
@@ -20,14 +21,6 @@ Agent::Agent(float newPosX, float newPosY, float newPosZ) {
 
 Agent::~Agent()
 {
-}
-
-//distance between 2 points
-float Agent::Distance(float x1, float y1, float z1, float x2, float y2, float z2)
-{
-	float result = sqrt((x2 - x1)*(x2 - x1) + (y2 - y1)*(y2 - y1) + (z2 - z1)*(z2 - z1));
-
-	return result;
 }
 
 void Agent::Start() {
@@ -402,4 +395,12 @@ void Agent::AddDesire(float newDesire)
 void Agent::RemoveDesire(int index)
 {
 	desire.erase(desire.begin() + index);
+}
+
+//distance between 2 points
+float Agent::Distance(float x1, float y1, float z1, float x2, float y2, float z2)
+{
+	float result = sqrt((x2 - x1)*(x2 - x1) + (y2 - y1)*(y2 - y1) + (z2 - z1)*(z2 - z1));
+
+	return result;
 }

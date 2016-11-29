@@ -67,7 +67,7 @@ class Agent
 	//public methods
 	public:
 		Agent();
-		Agent(float newPosX, float newPosY, float newPosZ);
+		Agent(float newPosX, float newPosY, float newPosZ, std::string newName);
 		~Agent();
 		void Start();
 		void Update(std::vector<Sign>* allSigns);

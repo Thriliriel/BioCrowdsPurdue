@@ -43,6 +43,8 @@ class Simulation
 		std::vector<float> verticesObstaclesX;
 		std::vector<float> verticesObstaclesY;
 		std::vector<float> verticesObstaclesZ;
+		//clock timer
+		clock_t t;
 
 	//private attributes
 	private:

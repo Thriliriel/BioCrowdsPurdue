@@ -22,7 +22,7 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ) {
 	//get all subdirectories within the defined config directory
 	_finddata_t data;
 	std::string path = allSimulations + "*.*";
-	int ff = _findfirst(path.c_str(), &data);
+	intptr_t ff = _findfirst(path.c_str(), &data);
 	if (ff != -1)
 	{
 		int res = 0;
@@ -82,8 +82,18 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ) {
 		DrawCells();
 		PlaceAuxins();
 
-		/*
-		GameObject agents = GameObject.Find("Agents");
+		//instantiante some goals
+		DrawGoal("Restaurant", 3, 0, 18);
+		DrawGoal("Theater", 27, 0, 17);
+		DrawGoal("Stadium", 5, 0, 3);
+		DrawGoal("AppleStore", 25, 0, 5);
+
+		//instantiante some signs
+		DrawSign(15, 0, 10, &goals[0], 0.7);
+		DrawSign(23, 0, 11, &goals[2], 0.9);
+
+		//std::cout << goals.size() << " -- " << signs.size();
+
 		//to avoid a freeze
 		int doNotFreeze = 0;
 		//instantiate qntAgents Agents
@@ -95,29 +105,20 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ) {
 				spawnPositionZ += 2;
 			}
 
-			//default
-			//scenarioType 0
 			//sort out a cell
-			int cellIndex = Random.Range(0, allCells.Length - 1);
-
-			//Debug.Log (x+"--"+z);
-			GameObject[] allGoals = GameObject.FindGameObjectsWithTag("Goal");
-			GameObject thisGoal = allGoals[0];
-
-			//default
-			GameObject foundCell = allCells[cellIndex];
+			int cellIndex = (int)floor(RandomFloat(0, cells.size() - 1));
 
 			//generate the agent position
-			float x = Random.Range(foundCell.transform.position.x - cellRadius, foundCell.transform.position.x + cellRadius);
-			float z = Random.Range(foundCell.transform.position.z - cellRadius, foundCell.transform.position.z + cellRadius);
+			float x = RandomFloat(cells[cellIndex].posX - cellRadius, cells[cellIndex].posX + cellRadius);
+			float z = RandomFloat(cells[cellIndex].posZ - cellRadius, cells[cellIndex].posZ + cellRadius);
 
 			//see if there are agents in this radius. if not, instantiante
-			bool pCollider = CheckObstacle(new Vector3(x, 0, z), "Player", 0.5f);
+			bool pCollider = CheckObstacle(x, 0, z, "Player", 0.5f);
 
 			//even so, if we are an obstacle, cannot instantiate either
 			//just need to check for obstacle if found no player, otherwise it will not be instantiated anyway
 			if (!pCollider) {
-				pCollider = CheckObstacle(new Vector3(x, 0, z), "Obstacle", 0.1f);
+				pCollider = CheckObstacle(x, 0, z, "Obstacle", 0.1f);
 			}
 
 			//if found a player in the radius, do not instantiante. try again
@@ -130,58 +131,36 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ) {
 			}
 			else
 			{
-				GameObject newAgent = Instantiate(agent, new Vector3(x, 0f, z), Quaternion.identity) as GameObject;
-				AgentController newAgentController = newAgent.GetComponent<AgentController>();
-				//change his name
-				newAgent.name = "agent" + i;
-				//random agent color
-				newAgentController.SetColor(new Color(Random.Range(0.0f, 1.0f), Random.Range(0.0f, 1.0f), Random.Range(0.0f, 1.0f)));
+				Agent newAgent(x, 0, z, "agent" + std::to_string(i));
 				//agent cell
-				newAgentController.SetCell(foundCell);
+				newAgent.SetCell(&cells[cellIndex]);
 				//agent radius
-				newAgentController.agentRadius = agentRadius;
-
-				newAgent.GetComponent<MeshRenderer>().material.color = newAgentController.GetColor();
+				newAgent.agentRadius = agentRadius;
 
 				//agent goals
-				for (int j = 0; j < allGoals.Length; j++)
+				for (int j = 0; j < goals.size(); j++)
 				{
-					newAgentController.go.Add(allGoals[j]);
+					//add a goal
+					newAgent.go.push_back(&goals[j]);
 					//add a random intention
-					newAgentController.intentions.Add(Random.Range(0f, (intentionThreshold - 0.01f)));
+					newAgent.intentions.push_back(RandomFloat(0, (intentionThreshold - 0.01)));
 					//add a random desire
-					newAgentController.AddDesire(Random.Range(0f, 1f));
+					newAgent.AddDesire(RandomFloat(0, 1));
 				}
 
-				//add the Looking For state, with a random position
-				GameObject lookingFor = GenerateLookingFor();
-				newAgentController.go.Add(lookingFor);
-				newAgentController.intentions.Add(intentionThreshold);
-				newAgentController.AddDesire(1);
-
 				//reorder following intentions
-				newAgentController.ReorderGoals();
-				//change parent
-				newAgent.transform.parent = agents.transform;
+				newAgent.ReorderGoals();
 
-				//agent ready, break!
-				//break;
+				agents.push_back(newAgent);
 			}
 		}
-
-		//instantiante some signs
-		Vector3 newVertice1 = verticesObstacles[Random.Range(0, verticesObstacles.Length - 1)];
-		Vector3 newVertice2 = verticesObstacles[Random.Range(0, verticesObstacles.Length - 1)];
-
-		//it is working, but has problems if the obstacle is rotated (i.e. 180 degrees)
-		//Debug.Log(newVertice1+" -- "+ newVertice2);
-
-		DrawSign(newVertice1, GameObject.Find("Goal1"), Random.Range(0f, 1f));
-		DrawSign(newVertice2, GameObject.Find("Goal2"), Random.Range(0f, 1f));*/
 	}
+	/*for (int i = 0; i < agents.size(); i++) {
+		std::cout << agents[i].name << "\n";
+	}*/
 
-	//get all cells in scene
-	//allCells = GameObject.FindGameObjectsWithTag("Cell");*/
+	//initiate the timer
+	t = clock();
 }
 
 void Simulation::DefaultValues() {
@@ -204,7 +183,7 @@ void Simulation::DefaultValues() {
 	//save config file?
 	saveConfigFile = false;
 	//load config file?
-	loadConfigFile = false;
+	loadConfigFile = true;
 	//all simulation files directory
 	allSimulations = "Simulations/";
 	//config filename
@@ -235,50 +214,54 @@ void Simulation::DefaultValues() {
 
 //checks if simulation is over
 //for that, we check if is there still an agent in the scene
-//if there is none, we clear the scene, update the index, get the new set of files to setup the new simulation and start
 void Simulation::EndSimulation() {
-	/*GameObject[] allAgents = GameObject.FindGameObjectsWithTag("Player");
-	if (allAgents.Length == 0) {
+	if (agents.size() == 0) {
 		//close exit file
-		exitFile.Close();
+		exitFile.close();
 		//close exit agents/goal file
-		agentsGoalFile.Close();
+		agentsGoalFile.close();
 
 		//update simulation index
 		simulationIndex++;
 
+		std::ofstream theReader;
+
 		//if index is >= than allDirs, we have reached the end. So, GAME OVER!!!
-		if (simulationIndex >= allDirs.Length)
+		if (simulationIndex >= allDirs.size())
 		{
 			gameOver = true;
-			Debug.Log("FINISHED!!");
 
 			//reset the iterator
-			var file = File.CreateText(Application.dataPath + "/SimulationIterator.txt");
-			file.WriteLine("0");
-			file.Close();
+			theReader.open(allSimulations + "SimulationIterator.txt");
+			theReader << "0";
+			theReader.close();
 
 			//reset the frame count
-			file = File.CreateText(Application.dataPath + "/FrameCount.txt");
-			file.WriteLine("0");
-			file.Close();
+			theReader.open(allSimulations + "FrameCount.txt");
+			theReader << "0";
+			theReader.close();
 		}
 		else
 		{
 			//else, we keep it going
-			var file = File.CreateText(Application.dataPath + "/SimulationIterator.txt");
-			file.WriteLine(simulationIndex.ToString());
-			file.Close();
+			//update the iterator
+			theReader.open(allSimulations + "SimulationIterator.txt");
+			theReader << simulationIndex;
+			theReader.close();
+
+			//update the timer
+			t = clock() - t;
 
 			//update last frame count
-			file = File.CreateText(Application.dataPath + "/FrameCount.txt");
-			file.WriteLine(Time.frameCount.ToString());
-			file.Close();
+			theReader.open(allSimulations + "FrameCount.txt");
+			theReader << ((float)t) / CLOCKS_PER_SEC; //seconds
+			theReader.close();
 
 			//reset scene
-			SceneManager.LoadScene(0);
+			//@TODO: PROVAVELMENTE DA PARA APENAS LIMPAR OS VETORES DE AGENTES E PLACAS, MANTENDO O CENÁRIO. VER COMO SERA FEITO!!
+			//SceneManager.LoadScene(0);
 		}
-	}*/
+	}
 }
 
 //control all chained simulations
@@ -288,10 +271,10 @@ void Simulation::LoadChainSimulation() {
 	std::ifstream theReader;
 	std::string line;
 
-	theReader.open(allSimulations+"SimulationIterator.txt");
+	theReader.open(allSimulations + "SimulationIterator.txt");
 	//we get the updated simulation Index
 	std::getline(theReader, line);
-	
+
 	simulationIndex = std::stoi(line);
 	theReader.close();
 
@@ -301,14 +284,14 @@ void Simulation::LoadChainSimulation() {
 
 	lastFrameCount = std::stoi(line);
 	theReader.close();
-	
+
 	//each directory within the defined config directory has a set of simulation files
 	//get all simulation files within the defined config directory
 	std::vector<std::string> allFiles;
 	_finddata_t data;
 	std::string path = allSimulations + allDirs[simulationIndex] + "/*.*";
-	
-	int ff = _findfirst(path.c_str(), &data);
+
+	intptr_t ff = _findfirst(path.c_str(), &data);
 	if (ff != -1)
 	{
 		int res = 0;
@@ -342,7 +325,7 @@ void Simulation::LoadChainSimulation() {
 	for (int i = 0; i < allFiles.size(); i++)
 	{
 		//just csv and dat files
-		if (allFiles[i].substr(allFiles[i].find_last_of(".") + 1) == "csv" || allFiles[i].substr(allFiles[i].find_last_of(".") + 1) == "dat"){
+		if (allFiles[i].substr(allFiles[i].find_last_of(".") + 1) == "csv" || allFiles[i].substr(allFiles[i].find_last_of(".") + 1) == "dat") {
 			if (allFiles[i].find(schNam[schNam.size() - 1]) != std::string::npos)
 			{
 				scheduleFilename = allFiles[i];
@@ -361,142 +344,136 @@ void Simulation::LoadChainSimulation() {
 			}
 		}
 	}//std::cout << scheduleFilename << " -- " << agentsGoalFilename << " -- " << exitFilename << " -- " << signsFilename << "\n";
-	
+
 	LoadConfigFile();
 }
 
 //load a csv config file
 void Simulation::LoadConfigFile() {
-	/*string line;
+	std::string line;
 
-	//parents
-	GameObject parentAgents = GameObject.Find("Agents");
-
-	// Create a new StreamReader, tell it which file to read and what encoding the file
 	//schedule file, with agents and their schedules
-	StreamReader theReader = new StreamReader(scheduleFilename, System.Text.Encoding.Default);
+	std::ifstream theReader;
+	theReader.open(scheduleFilename);
 
-	using (theReader)
+	int lineCount = 1;
+	// While there's lines left in the text file, do this:
+	do
 	{
-		int lineCount = 1;
-		// While there's lines left in the text file, do this:
-		do
+		std::getline(theReader, line);
+
+		if (line != "" && !line.empty())
 		{
-			line = theReader.ReadLine();
-
-			if (line != null)
+			//in first line, it is the qnt agents
+			if (lineCount == 1)
 			{
-				//in first line, it is the qnt agents
-				if (lineCount == 1)
-				{
-					qntAgents = System.Int32.Parse(line);
-				}
-				else {
-					//each line 1 agent, separated by " "
-					string[] entries = line.Split(' ');
+				qntAgents = std::stoi(line);
+			}
+			else {
+				//each line 1 agent, separated by " "
+				std::vector<std::string> entries;
+				Split(line, ' ', entries);
 
-					Vector3 newPosition = new Vector3(System.Convert.ToSingle(entries[0]), agent.transform.position.y, System.Convert.ToSingle(entries[1]));
-					float grain = 1f;
-					float originalGrain = grain;
+				float newPositionX = std::stof(entries[0]);
+				float newPositionY = 0;
+				float newPositionZ = std::stof(entries[1]);
+				float grain = 1;
+				float originalGrain = grain;
 
-					//check if there is an obstacle in this position
-					while (CheckObstacle(newPosition, "Obstacle", 0.1f)) {
-						//if there is an obstacle, test with new positions
-						if (!CheckObstacle(newPosition + new Vector3(grain, 0f, 0f), "Obstacle", 0.1f))
-						{
-							newPosition = newPosition + new Vector3(grain, 0f, 0f);
-							break;
-						}
-						else if (!CheckObstacle(newPosition + new Vector3(0f, 0f, -grain), "Obstacle", 0.1f))
-						{
-							newPosition = newPosition + new Vector3(0f, 0f, -grain);
-							break;
-						}
-						else if (!CheckObstacle(newPosition + new Vector3(-grain, 0f, 0f), "Obstacle", 0.1f))
-						{
-							newPosition = newPosition + new Vector3(-grain, 0f, 0f);
-							break;
-						}
-						else if (!CheckObstacle(newPosition + new Vector3(0f, 0f, grain), "Obstacle", 0.1f))
-						{
-							newPosition = newPosition + new Vector3(0f, 0f, grain);
-							break;
-						}
-						else
-						{
-							//if none, update with twice the grain to try again
-							grain += originalGrain;
-						}
-					}
-
-					GameObject newAgent = Instantiate(agent, newPosition, Quaternion.identity) as GameObject;
-					AgentController agentFoundController = newAgent.GetComponent<AgentController>();
-					//change his name
-					int agentName = lineCount - 2;
-					newAgent.name = "agent" + agentName;
-					//change his radius
-					agentFoundController.agentRadius = agentRadius;
-					//change his color
-					newAgent.GetComponent<MeshRenderer>().material.color = new Color(Random.Range(0.0f, 1.0f), Random.Range(0.0f, 1.0f), Random.Range(0.0f, 1.0f));
-					//find the cell in x - z coords, using his name
-					//use the rest of division by cellRadius*2
-					int restDivisionX = (int)(newPosition.x % (cellRadius * 2));
-					int restDivisionZ = (int)(newPosition.z % (cellRadius * 2));
-
-					//Debug.Log("Agent " + newAgent.name + ": RestX- " + restDivisionX + " -- RestZ- " + restDivisionZ);
-					//Debug.Log("Agent " + newAgent.name + ": newPosition.x- " + newPosition.x + " -- cellRadius- " + cellRadius);
-
-					int nameX = (int)(newPosition.x - restDivisionX);
-					int nameZ = (int)(newPosition.z - restDivisionZ);
-
-					GameObject foundCell = GameObject.Find("cell" + nameX + "-" + nameZ);
-					if (foundCell)
+				//check if there is an obstacle in this position
+				while (CheckObstacle(newPositionX, newPositionY, newPositionZ, "Obstacle", 0.1f)) {
+					//if there is an obstacle, test with new positions
+					if (!CheckObstacle(newPositionX+grain, newPositionY, newPositionZ, "Obstacle", 0.1f))
 					{
-						agentFoundController.SetCell(foundCell);
+						newPositionX += grain;
+						break;
+					}
+					else if (!CheckObstacle(newPositionX, newPositionY, newPositionZ-grain, "Obstacle", 0.1f))
+					{
+						newPositionZ -= grain;
+						break;
+					}
+					else if (!CheckObstacle(newPositionX-grain, newPositionY, newPositionZ, "Obstacle", 0.1f))
+					{
+						newPositionX -= grain;
+						break;
+					}
+					else if (!CheckObstacle(newPositionX, newPositionY, newPositionZ+grain, "Obstacle", 0.1f))
+					{
+						newPositionZ += grain;
+						break;
 					}
 					else
 					{
-						Debug.Log("Agent " + newAgent.name + ": Cell not found! " + nameX + " - " + nameZ);
+						//if none, update with twice the grain to try again
+						grain += originalGrain;
 					}
-					//change parent
-					newAgent.transform.parent = parentAgents.transform;
-
-					//set his goals
-					//first and second information in the file are just the coordinates, which i already have in config file
-					//go 2 in 2, since it is a pair between goal and intention to that goal
-					for (int j = 2; j < entries.Length; j = j + 2)
-					{
-						//there is an empty space on the end of the line, dont know why.
-						if (entries[j] == "") continue;
-
-						//try to find this goal object
-						GameObject goalFound = GameObject.Find("Goal" + entries[j]);
-
-						if (goalFound)
-						{
-							agentFoundController.go.Add(goalFound);
-							agentFoundController.intentions.Add(System.Convert.ToSingle(entries[j + 1]));
-							//add a random desire
-							agentFoundController.AddDesire(Random.Range(0f, 1f));
-						}
-					}
-
-					//add the Looking For state, with a random position
-					GameObject lookingFor = GenerateLookingFor();
-					agentFoundController.go.Add(lookingFor);
-					agentFoundController.intentions.Add(intentionThreshold);
-					agentFoundController.AddDesire(1);
-
-					//now, we need to reorder our goal/intentions array, so the agent will follow the goal of bigger intention
-					agentFoundController.ReorderGoals();
 				}
+
+				//change his name
+				int agentName = lineCount - 2;
+
+				//find the cell in x - z coords, using his name
+				//use the rest of division by cellRadius*2
+				int restDivisionX = (int)((int)newPositionX % (int)(cellRadius * 2));
+				int restDivisionZ = (int)((int)newPositionZ % (int)(cellRadius * 2));
+				int cellIndex = -1;
+				int nameX = (int)(newPositionX - restDivisionX);
+				int nameZ = (int)(newPositionZ - restDivisionZ);
+				for (int c = 0; c < cells.size(); c++) {
+					if (cells[c].name == "cell" + std::to_string(nameX) + "-" + std::to_string(nameZ)) {
+						cellIndex = c;
+						break;
+					}
+				}
+
+				//instantiate new agent
+				Agent newAgent(newPositionX, newPositionY, newPositionZ, "agent" + std::to_string(agentName));
+				//agent cell
+				if (cellIndex > -1) {
+					newAgent.SetCell(&cells[cellIndex]);
+				}
+				else {
+					std::cout << newAgent.name << ": " << "Celula nao encontrada! CellNameX: " + std::to_string(nameX) + " -- CellNameZ: " 
+						+ std::to_string(nameZ) + "\n";
+				}
+				//agent radius
+				newAgent.agentRadius = agentRadius;
+
+				//set his goals
+				//go 2 in 2, since it is a pair between goal and intention to that goal
+				for (int j = 2; j < entries.size(); j = j + 2)
+				{
+					//there is an empty space on the end of the line, dont know why.
+					if (entries[j] == "") continue;
+
+					//try to find this goal object
+					if (std::stoi(entries[j]) < goals.size())
+					{
+						//add a goal
+						newAgent.go.push_back(&goals[std::stoi(entries[j])]);
+						//add intention
+						newAgent.intentions.push_back(std::stof(entries[j+1]));
+						//add a random desire
+						newAgent.AddDesire(RandomFloat(0, 1));
+					}
+				}
+
+				//reorder following intentions
+				newAgent.ReorderGoals();
+
+				agents.push_back(newAgent);
 			}
-			lineCount++;
-		} while (line != null);
-		// Done reading, close the reader and return true to broadcast success
-		theReader.Close();
+		}
+		lineCount++;
+	} while (line != "" && !line.empty());
+	// Done reading, close the reader and return true to broadcast success
+	theReader.close();
+	for (int i = 0; i < agents.size(); i++) {
+		std::cout << agents[i].name << "\n";
 	}
 
+	/*
 	// Create a new StreamReader, tell it which file to read and what encoding the file
 	//signs file, with signs and their appeals
 	theReader = new StreamReader(signsFilename, System.Text.Encoding.Default);
@@ -756,10 +733,10 @@ void Simulation::DrawCells()
 			//otherwise, we go on
 			//@TODO: see how to draw the obstacles and interact with them
 			//if (!collideRight || !collideLeft || !collideTop || !collideDown)
-			if(true)
+			if (true)
 			{
 				//new cell
-				Cell newCell(newPositionX+i, newPositionY, newPositionZ+j, "cell" + std::to_string(i) + "-" + std::to_string(j));
+				Cell newCell(newPositionX + i, newPositionY, newPositionZ + j, "cell" + std::to_string(i) + "-" + std::to_string(j));
 				cells.push_back(newCell);
 			}
 		}
@@ -808,7 +785,7 @@ void Simulation::PlaceAuxins() {
 					break;
 				}
 			}
-			
+
 			//if i have found no auxin, i still need to check if is there obstacles on the way
 			if (canIInstantiante)
 			{
@@ -1307,27 +1284,6 @@ public void GenerateMetric() {
 		exitFile.Close();
 	}
 }
-
-//generates a new looking for GameObject
-private GameObject GenerateLookingFor() {
-	GameObject lookingFor = new GameObject();
-	lookingFor.name = "LookingFor";
-	lookingFor.tag = "LookingFor";
-	bool foundPosition = false;
-	Vector3 LFPosition = Vector3.zero;
-	//while bool. Use this to check for possible obstacles.
-	while (!foundPosition)
-	{
-		foundPosition = true;
-		LFPosition = new Vector3(Random.Range(0f, terrain.terrainData.size.x),
-			0f, Random.Range(0f, terrain.terrainData.size.z));
-		foundPosition = !CheckObstacle(LFPosition, "Obstacle", 0.1f);
-	}
-	lookingFor.transform.position = LFPosition;
-	return lookingFor;
-}
-
-
 
 //check group vertices to find the corners
 //TODO: SEE WHY IT IS CREATING MORE GROUPS THAN IT SHOULD
