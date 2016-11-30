@@ -17,6 +17,7 @@ Agent::Agent(float newPosX, float newPosY, float newPosZ, std::string newName) {
 	//set inicial values
 	valorDenominadorW = 0;
 	denominadorW = false;
+	maxSpeed = 1.5f;
 }
 
 Agent::~Agent()
@@ -134,9 +135,10 @@ void Agent::Interaction(Sign *sign, float distance, int index)
 //walk
 void Agent::Caminhe(float tempo)
 {
+	//std::cout << name << ": SpeedX - " << speedX << " -- Tempo: " << tempo << "\n";
 	posX += speedX*tempo;
-	posX += speedX*tempo;
-	posX += speedX*tempo;
+	posY += speedY*tempo;
+	posZ += speedZ*tempo;
 }
 
 //The calculation formula starts here
@@ -240,7 +242,7 @@ void Agent::CalculaVelocidade()
 void Agent::FindNearAuxins(float cellRadius, std::vector<Cell>* allCells, std::vector<Agent>* allAgents) {
 	//clear them all, for obvious reasons
 	myAuxins.clear();
-
+	//std::cout << cell->name << "\n";
 	//check all auxins on agent cell
 	CheckAuxinsCell(cell, allAgents);
 
@@ -296,13 +298,12 @@ void Agent::FindNearAuxins(float cellRadius, std::vector<Cell>* allCells, std::v
 void Agent::CheckAuxinsCell(Cell *neighbourCell, std::vector<Agent>* allAgents)
 {
 	//get all auxins on my cell
-	std::vector<Marker>* cellAuxins = cell->GetAuxins();
+	std::vector<Marker>* cellAuxins = neighbourCell->GetAuxins();
 
 	//iterate all cell auxins to check distance between auxins and agent
 	for (int i = 0; i < cellAuxins->size(); i++)
 	{
 		//see if the distance between this agent and this auxin is smaller than the actual value, and inside agent radius
-		//@TODO: Is it right??? cellAuxins[i][0].posX, (*cellAuxins)[i]...????
 		float distance = Distance(posX, posY, posZ, (*cellAuxins)[i].posX, (*cellAuxins)[i].posY, (*cellAuxins)[i].posZ);
 		if (distance < (*cellAuxins)[i].GetMinDistance() && distance <= agentRadius)
 		{
@@ -372,7 +373,7 @@ Cell* Agent::GetCell()
 }
 void Agent::SetCell(Cell* newCell)
 {
-	cell = cell;
+	cell = newCell;
 }
 
 //add a new auxin on myAuxins

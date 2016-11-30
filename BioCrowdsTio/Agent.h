@@ -33,6 +33,10 @@ class Agent
 		float goalX;
 		float goalY;
 		float goalZ;
+		//looking for position
+		float lookinForX;
+		float lookinForY;
+		float lookinForZ;
 
 	//private attributes
 	private:

@@ -43,8 +43,12 @@ class Simulation
 		std::vector<float> verticesObstaclesX;
 		std::vector<float> verticesObstaclesY;
 		std::vector<float> verticesObstaclesZ;
-		//clock timer
+		//clock starter timer
 		clock_t t;
+		//clock simulation timer
+		clock_t simulationT;
+		//clock fps timer
+		float fpsT;
 
 	//private attributes
 	private:
@@ -76,6 +80,8 @@ class Simulation
 		int lastFrameCount;
 		//intention threshold
 		float intentionThreshold;
+		//Simulation time step
+		int fps;
 		//all obstacles
 		//@TODO: see how to draw the obstacles and interact with them
 		//GameObject[] allObstacles;
@@ -90,10 +96,12 @@ class Simulation
 		Simulation();
 		Simulation(float mapSizeX, float mapSizeZ);
 		~Simulation();
+		void Update();
 
 	//private methods
 	private:
 		void DefaultValues();
+		void StartSimulation();
 		void EndSimulation();
 		void LoadChainSimulation();
 		void LoadConfigFile();
@@ -103,6 +111,9 @@ class Simulation
 		void DrawCells();
 		void PlaceAuxins();
 		bool CheckObstacle(float checkPositionX, float checkPositionY, float checkPositionZ, std::string tag, float radius);
+		void SaveConfigFile();
+		void SaveExitFile();
+		void SaveAgentsGoalFile(std::string agentName, std::string goalName);
 		float Distance(float x1, float y1, float z1, float x2, float y2, float z2);
 		void Split(const std::string &s, char delim, std::vector<std::string> &elems);
 		float RandomFloat(float min, float max);

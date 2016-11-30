@@ -83,19 +83,22 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ) {
 		//ReadOBJFile();
 		DrawCells();
 		PlaceAuxins();
-		//std::cout << cells.size();
-		
+		std::cout << cells.size() << "\n";
+
 		//instantiante some goals
 		DrawGoal("Restaurant", 3, 0, 18);
 		DrawGoal("Theater", 27, 0, 17);
 		DrawGoal("Stadium", 5, 0, 3);
 		DrawGoal("AppleStore", 25, 0, 5);
-		for (int p = 0; p < signs.size(); p++) {
-			std::cout << signs[p].GetGoal()->name << "\n";
+
+		//instantiate the goal's signs
+		for (int p = 0; p < goals.size(); p++) {
+			DrawSign(goals[p].posX, goals[p].posY, goals[p].posZ, &goals[p], 1);
 		}
+
 		//instantiante some signs
-		//DrawSign(15, 0, 10, &goals[0], 0.7);
-		//DrawSign(23, 0, 11, &goals[2], 0.9);
+		DrawSign(15, 0, 10, &goals[0], 0.7);
+		DrawSign(23, 0, 11, &goals[2], 0.9);
 
 		//std::cout << goals.size() << " -- " << signs.size();
 
@@ -156,6 +159,9 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ) {
 				//reorder following intentions
 				newAgent.ReorderGoals();
 
+				//start default values
+				newAgent.Start();
+
 				agents.push_back(newAgent);
 			}
 		}
@@ -163,15 +169,27 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ) {
 	/*for (int i = 0; i < agents.size(); i++) {
 		std::cout << agents[i].name << "\n";
 	}*/
-	
+
 	for (int p = 0; p < signs.size(); p++) {
 		//std::cout << signs[p].GetGoal()->name << "\n";
 	}
 
+	//all ready to go. If saveConfigFile is checked, save this config in a csv file
+	if (saveConfigFile)
+	{
+		std::cout << "SAVING CONFIG FILE!!\n";
+
+		Simulation::SaveConfigFile();
+	}
+
 	std::cout << "STARTING TO RUN!!\n";
 
-	//initiate the timer
-	t = clock();
+	//initiate both timers
+	t = simulationT = clock();
+	fpsT = 0;
+
+	//start
+	StartSimulation();
 }
 
 void Simulation::DefaultValues() {
@@ -221,6 +239,23 @@ void Simulation::DefaultValues() {
 	lastFrameCount = 0;
 	//intention threshold
 	intentionThreshold = 0.8f;
+	//simulation time step
+	fps = 1;
+}
+
+//start the simulation and control the update
+void Simulation::StartSimulation() {
+	//start it
+	Update();
+
+	//each time step, call again
+	while (true) {
+		fpsT += ((float)clock()) / CLOCKS_PER_SEC;
+		if (fpsT >= (1/fps)) {
+			fpsT -= fps;
+			Update();
+		}
+	}
 }
 
 //checks if simulation is over
@@ -260,12 +295,9 @@ void Simulation::EndSimulation() {
 			theReader << simulationIndex;
 			theReader.close();
 
-			//update the timer
-			t = clock() - t;
-
 			//update last frame count
 			theReader.open(allSimulations + "FrameCount.txt");
-			theReader << ((float)t) / CLOCKS_PER_SEC; //seconds
+			theReader << ((float)clock() - t) / CLOCKS_PER_SEC; //seconds
 			theReader.close();
 
 			//reset scene
@@ -517,9 +549,9 @@ void Simulation::LoadConfigFile() {
 				//define position based on obstacle vertices
 				//@TODO: see how to draw the obstacles and interact with them
 				//if (allObstacles.Length > 0) {
-				if(true){
+				if (true) {
 					//if (allObstacles.Length == 1)
-					if(true)
+					if (true)
 					{
 						//check group vertices to find the corners
 						newPositionX = verticesObstaclesX[round(RandomFloat(0, verticesObstaclesX.size()) - 1)];
@@ -584,12 +616,9 @@ void Simulation::LoadConfigFile() {
 	// Done reading, close the reader and return true to broadcast success
 	theReader.close();
 
-	/*for (int p = 0; p < goals.size(); p++) {
-		std::cout << goals[p].name << "\n";
-	}*/
-	for (int p = 0; p < signs.size(); p++) {
+	/*for (int p = 0; p < signs.size(); p++) {
 		std::cout << signs[p].GetGoal()->name << "\n";
-	}
+	}*/
 }
 
 //load cells and auxins and obstacles and goals (static stuff)
@@ -728,6 +757,11 @@ void Simulation::LoadCellsAuxins() {
 	// Done reading, close the reader and return true to broadcast success
 	theReader.close();
 
+	//instantiate the goal's signs
+	for (int p = 0; p < goals.size(); p++) {
+		DrawSign(goals[p].posX, goals[p].posY, goals[p].posZ, &goals[p], 1);
+	}
+
 	/*for (int i = 0; i < signs.size(); i++) {
 		std::cout << signs[i].posX << "\n";
 	}*/
@@ -737,12 +771,7 @@ void Simulation::LoadCellsAuxins() {
 void Simulation::DrawGoal(std::string goalName, float goalPositionX, float goalPositionY, float goalPositionZ)
 {
 	Goal newGoal(goalName, goalPositionX, goalPositionY, goalPositionZ);
-	//QUANDO DA PUSH_BACK, TALVEZ O ENDEREÇO DE MEMORIA MUDE???
 	goals.push_back(newGoal);
-	
-	//draw a sign on this position too, so if the agent is looking for around, he finds it
-	//@TODO: AQUI EH O PROBLEMA, ONDE ESTA "ZERANDO" OS GOALS DAS SIGNS. TALVEZ POR CAUSA DO ENDEREÇO DE MEMORIA NA CHAMADA DA FUNCAO???
-	DrawSign(goalPositionX, goalPositionY, goalPositionZ, &goals[goals.size()-1], 1);
 }
 
 //draw a sign
@@ -867,7 +896,8 @@ void Simulation::PlaceAuxins() {
 	}
 
 	/*for (int i = 0; i < cells.size(); i++) {
-		std::cout << cells[i].GetAuxins()->size() << "\n";
+		//std::cout << cells[i].GetAuxins()->size() << "\n";
+		//std::cout << cells[i].GetAuxins()->at(0).posX << "\n";
 	}*/
 }
 
@@ -891,280 +921,11 @@ bool Simulation::CheckObstacle(float checkPositionX, float checkPositionY, float
 	return false;
 }
 
-/*
-void Start() {
-	//all ready to go. If saveConfigFile is checked, save this config in a csv file
-	if (saveConfigFile)
-	{
-		SaveConfigFile();
-	}
-}
-
-// Update is called once per frame
-void Update() {
-	//if simulation should be running yet
-	if (!gameOver)
-	{
-		//reset auxins
-		//it must be here because we need to make sure they reset before calculate the new auxins
-		//TODO: HERE, MAYBE WE CAN JUST FIND THE CELLS/AUXINS THAT ACTUALLY NEED TO BE RESETED! MAYBE USING AGENTS?
-		//RESULT: NOPE, STILL SLOW... KEEP THIS WAY
-		for (int i = 0; i < allCells.Length; i++)
-		{
-			List<AuxinController> allAuxins = allCells[i].GetComponent<CellController>().GetAuxins();
-			for (int j = 0; j < allAuxins.Count; j++)
-			{
-				allAuxins[j].ResetAuxin();
-			}
-		}
-
-		//find nearest auxins for each agent
-		for (int i = 0; i < qntAgents; i++)
-		{
-			//first, lets see if the agent is still in the scene
-			bool destroyed = false;
-			for (int j = 0; j < agentsDestroyed.Count; j++)
-			{
-				if (agentsDestroyed[j] == i) destroyed = true;
-			}
-
-			//if he is
-			if (!destroyed)
-			{
-				GameObject agentI = GameObject.Find("agent" + i);
-				//find all auxins near him (Voronoi Diagram)
-				agentI.GetComponent<AgentController>().FindNearAuxins(cellRadius);
-			}
-		}
-
-		/*to find where the agent must move, we need to get the vectors from the agent to each auxin he has, and compare with
-		the vector from agent to goal, generating a angle which must lie between 0 (best case) and 180 (worst case)
-		The calculation formula was taken from the Bicho´s mastery tesis and from Paravisi algorithm, all included
-		in AgentController.
-		*/
-
-		/*for each agent, we:
-		1 - verify if he is in the scene. If he is...
-		2 - find him
-		3 - for each auxin near him, find the distance vector between it and the agent
-		4 - calculate the movement vector (CalculaDirecaoM())
-		5 - calculate speed vector (CalculaVelocidade())
-		6 - walk (Caminhe())
-		7 - verify if the agent has reached the goal. If so, destroy it //TODO: try to find a better value/way
-		*//*
-		for (int i = 0; i < qntAgents; i++)
-		{
-
-			//verify if agent is not destroyed
-			bool destroyed = false;
-			for (int j = 0; j < agentsDestroyed.Count; j++)
-			{
-				if (agentsDestroyed[j] == i) destroyed = true;
-			}
-
-			if (!destroyed)
-			{
-				//find the agent
-				GameObject agentI = GameObject.Find("agent" + i);
-				AgentController agentIController = agentI.GetComponent<AgentController>();
-				GameObject goal = agentIController.go[0];
-				List<AuxinController> agentAuxins = agentIController.GetAuxins();
-
-				//vector for each auxin
-				for (int j = 0; j < agentAuxins.Count; j++)
-				{
-					//add the distance vector between it and the agent
-					agentIController.vetorDistRelacaoMarcacao.Add(agentAuxins[j].position - agentI.transform.position);
-
-					//just draw the little spider legs xD
-					Debug.DrawLine(agentAuxins[j].position, agentI.transform.position);
-				}
-
-				//calculate the movement vector
-				agentIController.CalculaDirecaoM();
-				//calculate speed vector
-				agentIController.CalculaVelocidade();
-
-				//now, we check if agent is stuck with another agent
-				//if so, change places
-				if (agentIController.speed.Equals(Vector3.zero))
-				{
-					Collider[] lockHit = Physics.OverlapSphere(agentI.transform.position, agentRadius);
-					foreach(Collider loki in lockHit)
-					{
-						//if it is the Player tag (agent) and it is not the agent itself and he can change position (to avoid forever changing)
-						if (loki.gameObject.tag == "Player" && loki.gameObject.name != agentI.gameObject.name && agentIController.changePosition)
-						{
-							//the other agent will not change position in this frame
-							loki.GetComponent<AgentController>().changePosition = false;
-							Debug.Log(agentI.gameObject.name + " -- " + loki.gameObject.name);
-							//exchange!!!
-							Vector3 positionA = agentI.transform.position;
-							agentI.transform.position = loki.gameObject.transform.position;
-							loki.gameObject.transform.position = positionA;
-						}
-					}
-				}
-
-				//walk
-				agentIController.Caminhe();
-
-				//verify agent position, in relation to the goal.
-				//if the distance between them is less than 1 (arbitrary, maybe authors have a better solution), he arrived. Destroy it so
-				float dist = Vector3.Distance(goal.transform.position, agentI.transform.position);
-				if (dist < agentIController.agentRadius)
-				{
-					//he arrived! Lets save this on file
-					//open exit file to save info each frame
-					//JUST NEED TO SAVE THE LAST ONE, SO BYEEEE...
-					//SaveAgentsGoalFile(agentI.name, goal.name);
-
-					//if we are already at the last agent goal, he arrived
-					//if he has 2 goals yet, but the second one is the Looking For, he arrived too
-					if (agentIController.go.Count == 1 ||
-						(agentIController.go.Count == 2 && agentIController.go[1].gameObject.tag == "LookingFor"))
-					{
-						SaveAgentsGoalFile(agentI.name, goal.name);
-						agentsDestroyed.Add(i);
-						Destroy(agentI);
-					}//else, he must go to the next goal. Remove this actual goal and this intention
-					else
-					{
-						//before we remove his actual go, we check if it is the looking for state.
-						//if it is, we remove it, but add a new one, because he dont know where to go yet
-						bool newLookingFor = false;
-						if (agentIController.go[0].gameObject.tag == "LookingFor")
-						{
-							GameObject.Destroy(agentIController.go[0].gameObject);
-							newLookingFor = true;
-						}
-						agentIController.go.RemoveAt(0);
-						agentIController.intentions.RemoveAt(0);
-						agentIController.RemoveDesire(0);
-
-						if (newLookingFor) {
-							//add the Looking For state, with a random position
-							GameObject lookingFor = GenerateLookingFor();
-							agentIController.go.Add(lookingFor);
-							agentIController.intentions.Add(intentionThreshold);
-							agentIController.AddDesire(1);
-
-							//since we have a new one, reorder
-							agentIController.ReorderGoals();
-						}
-					}
-				}
-			}
-		}
-
-		//write the exit file
-		SaveExitFile();
-
-		//End simulation?
-		if (loadConfigFile)
-		{
-			EndSimulation();
-		}
-	}
-}
-
-
-
-//draw obstacles on the scene
-public void DrawObstacles() {
-	//draw rectangle
-	Vector3[] vertices = new Vector3[4];
-	vertices[0] = new Vector3(5, 0, 10);
-	vertices[1] = new Vector3(5, 0, 13);
-	vertices[2] = new Vector3(15, 0, 13);
-	vertices[3] = new Vector3(15, 0, 10);
-	DrawObstacle(vertices);
-
-	//draw pentagon
-	vertices = new Vector3[5];
-	vertices[0] = new Vector3(20, 0, 15);
-	vertices[1] = new Vector3(18, 0, 18);
-	vertices[2] = new Vector3(22, 0, 20);
-	vertices[3] = new Vector3(26, 0, 18);
-	vertices[4] = new Vector3(24, 0, 15);
-	DrawObstacle(vertices);
-
-	//build the navmesh at runtime
-	NavMeshBuilder.BuildNavMesh();
-}
-
-//draw each obstacle
-//each polygon has vertices-2 triangles
-protected void DrawObstacle(Vector3[] vertices, int[] triangles = null) {
-	GameObject obstacles = GameObject.Find("Obstacles");
-
-	GameObject go = new GameObject();
-	go.transform.parent = obstacles.transform;
-
-	go.AddComponent<MeshFilter>();
-	go.AddComponent<MeshRenderer>();
-	MeshFilter mf = go.GetComponent<MeshFilter>();
-	var mesh = new Mesh();
-	mf.mesh = mesh;
-
-	//set the vertices
-	mesh.vertices = vertices;
-
-	if (triangles == null)
-	{
-		//calc the qnt triangles
-		int qntTriangles = vertices.Length - 2;
-
-		//set all triangles vertices
-		int[] tri = new int[qntTriangles * 3];
-
-		int verticeIndex = 0;
-		//since when restart the verticeIndex we will not want to draw the same triangle, we use a multiply factor to get the next vertice
-		//TODO: NEED TO FIND A BETTER WAY, SINCE IT WILL NOT WORK FOR EVERY CASE
-		int multiplyFactor = 1;
-		for (int i = 0; i < tri.Length; i++)
-		{
-			tri[i] = verticeIndex * multiplyFactor;
-			//Debug.Log (tri[i]);
-			//if it is the last one, we will use the same vertice to start next triangle
-			if ((i + 1) % 3 != 0)
-			{
-				verticeIndex++;
-			}
-			//if vertice is out of bounds, back to 0
-			if (verticeIndex >= vertices.Length)
-			{
-				verticeIndex = 0;
-				multiplyFactor++;
-			}
-		}
-
-		//set triangles
-		mesh.triangles = tri;
-	}
-	else
-	{
-		mesh.triangles = triangles;
-
-		//obstacle has center at 0x0, so, need to place it 500 forward
-		go.transform.position = new Vector3(500f, 0, 500f);
-	}
-
-	go.AddComponent<MeshCollider>();
-	//go.GetComponent<MeshCollider>().isTrigger = true;
-	go.tag = "Obstacle";
-	go.name = "Obstacle";
-
-	//change the static navigation to draw it dinamically
-	GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.NavigationStatic);
-	GameObjectUtility.SetNavMeshArea(go, 1);
-}
-
 //save a csv config file
 //files saved: Config.csv, Obstacles.csv, goals.dat
-protected void SaveConfigFile() {
+void Simulation::SaveConfigFile() {
 	//config file
-	var file = File.CreateText(Application.dataPath + "/" + configFilename);
+	/*var file = File.CreateText(Application.dataPath + "/" + configFilename);
 	//obstacles file
 	var fileObstacles = File.CreateText(Application.dataPath + "/" + obstaclesFilename);
 	//goals file
@@ -1266,7 +1027,275 @@ protected void SaveConfigFile() {
 		}
 	}
 
-	fileGoals.Close();
+	fileGoals.Close();*/
+}
+
+// Update is called once per frame
+void Simulation::Update() {
+	//if simulation should be running yet
+	if (!gameOver)
+	{
+		//update simulationT
+		simulationT = clock() - simulationT;
+
+		//reset auxins
+		//it must be here because we need to make sure they reset before calculate the new auxins
+		for (int i = 0; i < cells.size(); i++)
+		{
+			std::vector<Marker>* allAuxins = cells[i].GetAuxins();
+			for (int j = 0; j < allAuxins->size(); j++)
+			{
+				(*allAuxins)[j].ResetAuxin();
+			}
+		}
+
+		//find nearest auxins for each agent
+		for (int i = 0; i < agents.size(); i++)
+		{
+			//find all auxins near him (Voronoi Diagram)
+			agents[i].FindNearAuxins(cellRadius, &cells, &agents);
+		}
+		/*
+		/*to find where the agent must move, we need to get the vectors from the agent to each auxin he has, and compare with
+		the vector from agent to goal, generating a angle which must lie between 0 (best case) and 180 (worst case)
+		The calculation formula was taken from the Bicho´s mastery tesis and from Paravisi algorithm, all included
+		in AgentController.
+		*/
+
+		/*for each agent, we:
+		1 - verify if he is in the scene. If he is...
+		2 - find him
+		3 - for each auxin near him, find the distance vector between it and the agent
+		4 - calculate the movement vector (CalculaDirecaoM())
+		5 - calculate speed vector (CalculaVelocidade())
+		6 - walk (Caminhe())
+		7 - verify if the agent has reached the goal. If so, destroy it
+		*/
+		for (int i = 0; i < agents.size(); i++)
+		{
+			//update agent
+			agents[i].Update(&signs);
+
+			//find his goal
+			Goal *goal = agents[i].go[0];
+			std::vector<Marker*> agentAuxins = agents[i].GetAuxins();
+
+			//vector for each auxin
+			for (int j = 0; j < agentAuxins.size(); j++)
+			{
+				//add the distance vector between it and the agent
+				agents[i].vetorDistRelacaoMarcacaoX.push_back(agentAuxins[j]->posX - agents[i].posX);
+				agents[i].vetorDistRelacaoMarcacaoY.push_back(agentAuxins[j]->posY - agents[i].posY);
+				agents[i].vetorDistRelacaoMarcacaoZ.push_back(agentAuxins[j]->posZ - agents[i].posZ);
+			}
+			/*for (int v = 0; v < agents[i].vetorDistRelacaoMarcacaoX.size(); v++) {
+				std::cout << agents[i].vetorDistRelacaoMarcacaoX[v] << "\n";
+			}*/
+			
+			//calculate the movement vector
+			agents[i].CalculaDirecaoM();
+			//calculate speed vector
+			agents[i].CalculaVelocidade();
+
+			//now, we check if agent is stuck with another agent
+			//if so, change places
+			//@TODO: FAZER ISSO SEM COLLIDER, TROCAR AGENTE DE POSIÇÃO
+			/*if (agentIController.speed.Equals(Vector3.zero))
+			{
+				Collider[] lockHit = Physics.OverlapSphere(agentI.transform.position, agentRadius);
+				foreach(Collider loki in lockHit)
+				{
+					//if it is the Player tag (agent) and it is not the agent itself and he can change position (to avoid forever changing)
+					if (loki.gameObject.tag == "Player" && loki.gameObject.name != agentI.gameObject.name && agentIController.changePosition)
+					{
+						//the other agent will not change position in this frame
+						loki.GetComponent<AgentController>().changePosition = false;
+						Debug.Log(agentI.gameObject.name + " -- " + loki.gameObject.name);
+						//exchange!!!
+						Vector3 positionA = agentI.transform.position;
+						agentI.transform.position = loki.gameObject.transform.position;
+						loki.gameObject.transform.position = positionA;
+					}
+				}
+			}*/
+
+			//walk
+			agents[i].Caminhe(((float)simulationT) / CLOCKS_PER_SEC);
+
+			std::cout << "Segundos: " << ((float)simulationT) / CLOCKS_PER_SEC << "\n";
+			std::cout << agents[i].name << ": " << agents[i].posX << "-" << agents[i].posZ << "\n";
+
+			//verify agent position, in relation to the goal.
+			//if the distance between them is less than 1 (arbitrary, maybe authors have a better solution), he arrived. Destroy it so
+			float dist = Distance(goal->posX, goal->posY, goal->posZ, agents[i].posX, agents[i].posY, agents[i].posZ);
+			if (dist < agents[i].agentRadius)
+			{
+				//he arrived! Lets save this on file
+				//open exit file to save info each frame
+				//JUST NEED TO SAVE THE LAST ONE, SO BYEEEE...
+				//SaveAgentsGoalFile(agentI.name, goal.name);
+
+				//if we are already at the last agent goal, he arrived
+				if (agents[i].go.size() == 1)
+				{
+					SaveAgentsGoalFile(agents[i].name, goal->name);
+					agents.erase(agents.begin() + i);
+					//this agent is done. Back to the for
+					continue;
+				}//else, he must go to the next goal. Remove this actual goal and this intention
+				else
+				{
+					//before we remove his actual go, we check if it is the looking for state.
+					//if it is, we remove it, but add a new one, because he dont know where to go yet
+					//@TODO: VER COMO FAZER O LOOKING FOR. APENAS CONTROLAR NAO VAI FUNCIONAR
+					bool newLookingFor = false;
+					/*if (agentIController.go[0].gameObject.tag == "LookingFor")
+					{
+						GameObject.Destroy(agentIController.go[0].gameObject);
+						newLookingFor = true;
+					}*/
+					agents[i].go.erase(agents[i].go.begin());
+					agents[i].intentions.erase(agents[i].intentions.begin());
+					agents[i].RemoveDesire(0);
+
+					/*if (newLookingFor) {
+						//add the Looking For state, with a random position
+						GameObject lookingFor = GenerateLookingFor();
+						agentIController.go.Add(lookingFor);
+						agentIController.intentions.Add(intentionThreshold);
+						agentIController.AddDesire(1);
+
+						//since we have a new one, reorder
+						agentIController.ReorderGoals();
+					}*/
+				}
+			}
+		}
+
+		//write the exit file
+		SaveExitFile();
+
+		//End simulation?
+		if (loadConfigFile)
+		{
+			EndSimulation();
+		}
+	}
+}
+
+//save a csv exit file, with positions of all agents in function of time
+void Simulation::SaveExitFile() {
+	//get agents info
+	/*GameObject[] allAgents = GameObject.FindGameObjectsWithTag("Player");
+	if (allAgents.Length > 0)
+	{
+		//each line: frame, agents name, positionx, positiony, positionz, goal object name, cell name
+		//separated with ;
+		//for each agent
+		for (int i = 0; i < allAgents.Length; i++)
+		{
+			exitFile.WriteLine(Time.frameCount - lastFrameCount + ";" + allAgents[i].name + ";" + allAgents[i].transform.position.x + ";" +
+				allAgents[i].transform.position.y + ";" + allAgents[i].transform.position.z + ";" +
+				allAgents[i].GetComponent<AgentController>().go[0].name + ";" +
+				allAgents[i].GetComponent<AgentController>().GetCell().name);
+		}
+	}*/
+}
+
+void Simulation::SaveAgentsGoalFile(std::string agentName, std::string goalName) {
+	//we save: Agent name, Goal name, Time he arrived
+	//agentsGoalFile.WriteLine(agentName + ";" + goalName + ";" + (Time.frameCount - lastFrameCount));
+}
+
+/*
+//draw obstacles on the scene
+public void DrawObstacles() {
+	//draw rectangle
+	Vector3[] vertices = new Vector3[4];
+	vertices[0] = new Vector3(5, 0, 10);
+	vertices[1] = new Vector3(5, 0, 13);
+	vertices[2] = new Vector3(15, 0, 13);
+	vertices[3] = new Vector3(15, 0, 10);
+	DrawObstacle(vertices);
+
+	//draw pentagon
+	vertices = new Vector3[5];
+	vertices[0] = new Vector3(20, 0, 15);
+	vertices[1] = new Vector3(18, 0, 18);
+	vertices[2] = new Vector3(22, 0, 20);
+	vertices[3] = new Vector3(26, 0, 18);
+	vertices[4] = new Vector3(24, 0, 15);
+	DrawObstacle(vertices);
+
+	//build the navmesh at runtime
+	NavMeshBuilder.BuildNavMesh();
+}
+
+//draw each obstacle
+//each polygon has vertices-2 triangles
+protected void DrawObstacle(Vector3[] vertices, int[] triangles = null) {
+	GameObject obstacles = GameObject.Find("Obstacles");
+
+	GameObject go = new GameObject();
+	go.transform.parent = obstacles.transform;
+
+	go.AddComponent<MeshFilter>();
+	go.AddComponent<MeshRenderer>();
+	MeshFilter mf = go.GetComponent<MeshFilter>();
+	var mesh = new Mesh();
+	mf.mesh = mesh;
+
+	//set the vertices
+	mesh.vertices = vertices;
+
+	if (triangles == null)
+	{
+		//calc the qnt triangles
+		int qntTriangles = vertices.Length - 2;
+
+		//set all triangles vertices
+		int[] tri = new int[qntTriangles * 3];
+
+		int verticeIndex = 0;
+		//since when restart the verticeIndex we will not want to draw the same triangle, we use a multiply factor to get the next vertice
+		//TODO: NEED TO FIND A BETTER WAY, SINCE IT WILL NOT WORK FOR EVERY CASE
+		int multiplyFactor = 1;
+		for (int i = 0; i < tri.Length; i++)
+		{
+			tri[i] = verticeIndex * multiplyFactor;
+			//Debug.Log (tri[i]);
+			//if it is the last one, we will use the same vertice to start next triangle
+			if ((i + 1) % 3 != 0)
+			{
+				verticeIndex++;
+			}
+			//if vertice is out of bounds, back to 0
+			if (verticeIndex >= vertices.Length)
+			{
+				verticeIndex = 0;
+				multiplyFactor++;
+			}
+		}
+
+		//set triangles
+		mesh.triangles = tri;
+	}
+	else
+	{
+		mesh.triangles = triangles;
+
+		//obstacle has center at 0x0, so, need to place it 500 forward
+		go.transform.position = new Vector3(500f, 0, 500f);
+	}
+
+	go.AddComponent<MeshCollider>();
+	//go.GetComponent<MeshCollider>().isTrigger = true;
+	go.tag = "Obstacle";
+	go.name = "Obstacle";
+
+	//change the static navigation to draw it dinamically
+	GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.NavigationStatic);
+	GameObjectUtility.SetNavMeshArea(go, 1);
 }
 
 //generate the metric between number of signs and time
@@ -1723,30 +1752,6 @@ public void CheckGroupVertices()
 	}
 
 	verticesObstacles = newVertices;
-}
-
-//save a csv exit file, with positions of all agents in function of time
-protected void SaveExitFile() {
-	//get agents info
-	GameObject[] allAgents = GameObject.FindGameObjectsWithTag("Player");
-	if (allAgents.Length > 0)
-	{
-		//each line: frame, agents name, positionx, positiony, positionz, goal object name, cell name
-		//separated with ;
-		//for each agent
-		for (int i = 0; i < allAgents.Length; i++)
-		{
-			exitFile.WriteLine(Time.frameCount - lastFrameCount + ";" + allAgents[i].name + ";" + allAgents[i].transform.position.x + ";" +
-				allAgents[i].transform.position.y + ";" + allAgents[i].transform.position.z + ";" +
-				allAgents[i].GetComponent<AgentController>().go[0].name + ";" +
-				allAgents[i].GetComponent<AgentController>().GetCell().name);
-		}
-	}
-}
-
-protected void SaveAgentsGoalFile(string agentName, string goalName) {
-	//we save: Agent name, Goal name, Time he arrived
-	agentsGoalFile.WriteLine(agentName + ";" + goalName + ";" + (Time.frameCount - lastFrameCount));
 }
 
 //TEST TO READ THE 4X4.OBJ

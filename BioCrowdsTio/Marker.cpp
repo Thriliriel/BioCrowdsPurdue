@@ -26,6 +26,7 @@ void Marker::ResetAuxin() {
 	SetMinDistance(2);
 	//SetAgent(NULL);
 	taken = false;
+	//std::cout << "Reseted - " + std::to_string(posX) + "\n";
 }
 
 //GET-SET
