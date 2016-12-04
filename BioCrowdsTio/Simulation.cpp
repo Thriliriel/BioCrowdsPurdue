@@ -83,7 +83,7 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ) {
 		//ReadOBJFile();
 		DrawCells();
 		PlaceAuxins();
-		std::cout << cells.size() << "\n";
+		std::cout << "Qnt Cells: " << cells.size() << "\n";
 
 		//instantiante some goals
 		DrawGoal("Restaurant", 3, 0, 18);
@@ -166,13 +166,14 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ) {
 			}
 		}
 	}
-	/*for (int i = 0; i < agents.size(); i++) {
-		std::cout << agents[i].name << "\n";
-	}*/
-
-	for (int p = 0; p < signs.size(); p++) {
-		//std::cout << signs[p].GetGoal()->name << "\n";
+	for (int i = 0; i < agents.size(); i++) {
+		std::cout << agents[i].name << ": PosX - " << agents[i].posX << " -- PosZ - " << agents[i].posZ << "\n";
 	}
+	system("PAUSE");
+
+	/*for (int p = 0; p < signs.size(); p++) {
+		std::cout << signs[p].GetGoal()->name << "\n";
+	}*/
 
 	//all ready to go. If saveConfigFile is checked, save this config in a csv file
 	if (saveConfigFile)
@@ -185,8 +186,9 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ) {
 	std::cout << "STARTING TO RUN!!\n";
 
 	//initiate both timers
-	t = simulationT = clock();
-	fpsT = 0;
+	startTime = clock();
+	simulationTime = ((double)clock() / CLOCKS_PER_SEC);
+	//std::cout << (double)clock() / CLOCKS_PER_SEC << " -- " << simulationTime << "\n";
 
 	//start
 	StartSimulation();
@@ -212,7 +214,7 @@ void Simulation::DefaultValues() {
 	//save config file?
 	saveConfigFile = false;
 	//load config file?
-	loadConfigFile = false;
+	loadConfigFile = true;
 	//all simulation files directory
 	allSimulations = "Simulations/";
 	//config filename
@@ -240,19 +242,25 @@ void Simulation::DefaultValues() {
 	//intention threshold
 	intentionThreshold = 0.8f;
 	//simulation time step
-	fps = 1;
+	fps = 24;
 }
 
 //start the simulation and control the update
 void Simulation::StartSimulation() {
-	//start it
-	Update();
+	//fps control
+	double fpsTime = 0;
 
 	//each time step, call again
 	while (true) {
-		fpsT += ((float)clock()) / CLOCKS_PER_SEC;
-		if (fpsT >= (1/fps)) {
-			fpsT -= fps;
+		//update simulation timer
+		simulationTime += (((double)clock()) / CLOCKS_PER_SEC) - simulationTime;
+		//std::cout << fpsTime << " -- " << simulationTime << "\n";
+		//update fps timer
+		fpsTime += (((double)clock()) / CLOCKS_PER_SEC) - simulationTime;
+
+		//if time variation if bigger than defined FPS, we "reset" it and Update.
+		if (fpsTime >= (1 / fps)) {			
+			fpsTime -= (1 / fps);
 			Update();
 		}
 	}
@@ -262,6 +270,8 @@ void Simulation::StartSimulation() {
 //for that, we check if is there still an agent in the scene
 void Simulation::EndSimulation() {
 	if (agents.size() == 0) {
+		std::cout << "Finishing Simulation " + std::to_string(simulationIndex) << "\n";
+
 		//close exit file
 		exitFile.close();
 		//close exit agents/goal file
@@ -286,6 +296,8 @@ void Simulation::EndSimulation() {
 			theReader.open(allSimulations + "FrameCount.txt");
 			theReader << "0";
 			theReader.close();
+
+			std::cout << "Simulation Done!\n";
 		}
 		else
 		{
@@ -297,12 +309,14 @@ void Simulation::EndSimulation() {
 
 			//update last frame count
 			theReader.open(allSimulations + "FrameCount.txt");
-			theReader << ((float)clock() - t) / CLOCKS_PER_SEC; //seconds
+			theReader << ((float)clock() - startTime) / CLOCKS_PER_SEC; //seconds
 			theReader.close();
 
 			//reset scene
-			//@TODO: PROVAVELMENTE DA PARA APENAS LIMPAR OS VETORES DE AGENTES E PLACAS, MANTENDO O CENÁRIO. VER COMO SERA FEITO!!
-			//SceneManager.LoadScene(0);
+			agents.clear();
+			signs.clear();
+			std::cout << "Loading Simulation " + std::to_string(simulationIndex) << "\n";
+			LoadChainSimulation();
 		}
 	}
 }
@@ -388,6 +402,9 @@ void Simulation::LoadChainSimulation() {
 		}
 	}//std::cout << scheduleFilename << " -- " << agentsGoalFilename << " -- " << exitFilename << " -- " << signsFilename << "\n";
 
+	exitFile.open(exitFilename);
+	agentsGoalFile.open(agentsGoalFilename);
+
 	LoadConfigFile();
 }
 
@@ -464,7 +481,7 @@ void Simulation::LoadConfigFile() {
 				int nameX = (int)(newPositionX - restDivisionX);
 				int nameZ = (int)(newPositionZ - restDivisionZ);
 				for (int c = 0; c < cells.size(); c++) {
-					if (cells[c].name == "cell" + std::to_string(nameX) + "-" + std::to_string(nameZ)) {
+					if (cells[c].name == "cell" + std::to_string((float)nameX) + "-" + std::to_string((float)nameZ)) {
 						cellIndex = c;
 						break;
 					}
@@ -477,8 +494,8 @@ void Simulation::LoadConfigFile() {
 					newAgent.SetCell(&cells[cellIndex]);
 				}
 				else {
-					std::cout << newAgent.name << ": " << "Celula nao encontrada! CellNameX: " + std::to_string(nameX) + " -- CellNameZ: "
-						+ std::to_string(nameZ) + "\n";
+					std::cout << newAgent.name << ": " << "Celula nao encontrada! CellNameX: " + std::to_string((float)nameX) + " -- CellNameZ: "
+						+ std::to_string((float)nameZ) + "\n";
 				}
 				//agent radius
 				newAgent.agentRadius = agentRadius;
@@ -706,6 +723,7 @@ void Simulation::LoadCellsAuxins() {
 
 						if (ind > -1) {
 							Marker newMarker(std::stof(entries[1]), std::stof(entries[2]), std::stof(entries[3]));
+							newMarker.name = entries[0];
 							cells[ind].AddAuxin(newMarker);
 						}
 						else {
@@ -873,6 +891,7 @@ void Simulation::PlaceAuxins() {
 			if (canIInstantiante)
 			{
 				Marker newMarker(x, 0, z);
+				newMarker.name = "marker" + std::to_string(x) + "-" + std::to_string(z);
 				cells[c].AddAuxin(newMarker);
 
 				//reset the flag
@@ -897,7 +916,7 @@ void Simulation::PlaceAuxins() {
 
 	/*for (int i = 0; i < cells.size(); i++) {
 		//std::cout << cells[i].GetAuxins()->size() << "\n";
-		//std::cout << cells[i].GetAuxins()->at(0).posX << "\n";
+		std::cout << cells[i].GetAuxins()->at(0).name << "\n";
 	}*/
 }
 
@@ -925,63 +944,59 @@ bool Simulation::CheckObstacle(float checkPositionX, float checkPositionY, float
 //files saved: Config.csv, Obstacles.csv, goals.dat
 void Simulation::SaveConfigFile() {
 	//config file
-	/*var file = File.CreateText(Application.dataPath + "/" + configFilename);
+	std::ofstream file;
+	file.open(configFilename);
 	//obstacles file
-	var fileObstacles = File.CreateText(Application.dataPath + "/" + obstaclesFilename);
+	//std::ofstream fileObstacles;
+	//fileObstacles.open(obstaclesFilename);
 	//goals file
-	var fileGoals = File.CreateText(Application.dataPath + "/" + goalsFilename);
-
+	std::ofstream fileGoals;
+	fileGoals.open(goalsFilename);
+	
 	//first, we save the terrain dimensions
-	Terrain terrain = GameObject.Find("Terrain").GetComponent<Terrain>();
-	file.WriteLine("terrainSize:" + terrain.terrainData.size.x + "," + terrain.terrainData.size.z);
+	file << "terrainSize:" + std::to_string(scenarioSizeX) + "," + std::to_string(scenarioSizeZ) + "\n";
 
 	//then, camera position and height
-	GameObject camera = GameObject.Find("Camera");
-	file.WriteLine("camera:" + camera.transform.position.x + "," + camera.transform.position.y + "," +
-		camera.transform.position.z + "," + camera.GetComponent<Camera>().orthographicSize);
+	//just need to have the line, since camera is not used here
+	file << "camera\n";
 
-	List<AuxinController> allAuxins = new List<AuxinController>();
-
+	std::string allAuxins = "";
+	int qntAuxins = 0;
+	
 	//get cells info
-	GameObject[] allCells = GameObject.FindGameObjectsWithTag("Cell");
-	if (allCells.Length > 0)
+	if (cells.size() > 0)
 	{
 		//each line: name, positionx, positiony, positionz, cell radius
 		//separated with ;
 
-		file.WriteLine("qntCells:" + allCells.Length);
-		//for each auxin
-		for (int i = 0; i < allCells.Length; i++)
+		file << "qntCells:" + std::to_string(cells.size()) + "\n";
+		//for each cell auxin
+		for (int i = 0; i < cells.size(); i++)
 		{
-			file.WriteLine(allCells[i].name + ";" + allCells[i].transform.position.x + ";" + allCells[i].transform.position.y +
-				";" + allCells[i].transform.position.z + ";" + cellRadius);
+			file << cells[i].name + ";" + std::to_string(cells[i].posX) + ";" + std::to_string(cells[i].posY) +
+				";" + std::to_string(cells[i].posZ) + ";" + std::to_string(cellRadius) + "\n";
 
 			//add all cell auxins to write later
-			List<AuxinController> allCellAuxins = allCells[i].GetComponent<CellController>().GetAuxins();
-			for (int j = 0; j < allCellAuxins.Count; j++)
+			std::vector<Marker>* allCellAuxins = cells[i].GetAuxins();
+			for (int j = 0; j < allCellAuxins->size(); j++)
 			{
-				//Debug.Log(allCellAuxins[j].name+" -- "+ allCellAuxins[j].position);
-				allAuxins.Add(allCellAuxins[j]);
+				allAuxins += (*allCellAuxins).at(j).name + ";" + std::to_string((*allCellAuxins).at(j).posX) + ";" + 
+					std::to_string((*allCellAuxins).at(j).posY) + ";" + std::to_string((*allCellAuxins).at(j).posZ) + ";" + 
+					std::to_string(auxinRadius) + ";" + cells[i].name + "\n";
+				qntAuxins++;
 			}
 		}
 	}
 
-	//get auxins info
-	if (allAuxins.Count > 0) {
-		//each line: name, positionx, positiony, positionz, auxinRadius, cell
-		//separated with ;
+	//write the auxins on the file
+	file << "qntAuxins:" << std::to_string(qntAuxins) << "\n";
+	file << allAuxins;
 
-		file.WriteLine("qntAuxins:" + allAuxins.Count);
-		//for each auxin
-		for (int i = 0; i < allAuxins.Count; i++) {
-			file.WriteLine(allAuxins[i].name + ";" + allAuxins[i].position.x + ";" + allAuxins[i].position.y +
-				";" + allAuxins[i].position.z + ";" + auxinRadius + ";" + allAuxins[i].GetCell().name);
-		}
-	}
-
-	file.Close();
+	file.close();
 
 	//get obstacles info
+	//@TODO: ver como fazer os obstaculos
+	/*
 	if (allObstacles.Length > 0)
 	{
 		//separated with ;
@@ -1011,23 +1026,22 @@ void Simulation::SaveConfigFile() {
 		}
 	}
 
-	fileObstacles.Close();
+	fileObstacles.Close();*/
 
 	//get goals info
-	GameObject[] allGoals = GameObject.FindGameObjectsWithTag("Goal");
-	if (allGoals.Length > 0)
+	if (goals.size() > 0)
 	{
 		//separated with " "
-		fileGoals.WriteLine(allGoals.Length);
+		fileGoals << std::to_string(goals.size()) + "\n";
 		//for each goal
-		for (int i = 0; i < allGoals.Length; i++)
+		for (int i = 0; i < goals.size(); i++)
 		{
 			//new line for the goal name and position
-			fileGoals.WriteLine(allGoals[i].name + " " + allGoals[i].transform.position.x + " " + allGoals[i].transform.position.z);
+			fileGoals << goals[i].name + " " + std::to_string(goals[i].posX) + " " + std::to_string(goals[i].posZ) + "\n";
 		}
 	}
 
-	fileGoals.Close();*/
+	fileGoals.close();
 }
 
 // Update is called once per frame
@@ -1035,8 +1049,8 @@ void Simulation::Update() {
 	//if simulation should be running yet
 	if (!gameOver)
 	{
-		//update simulationT
-		simulationT = clock() - simulationT;
+		//update simulationTime
+		simulationTime = clock() - simulationTime;
 
 		//reset auxins
 		//it must be here because we need to make sure they reset before calculate the new auxins
@@ -1055,6 +1069,7 @@ void Simulation::Update() {
 			//find all auxins near him (Voronoi Diagram)
 			agents[i].FindNearAuxins(cellRadius, &cells, &agents);
 		}
+		//std::cout << agents[0].GetAuxins().size() << "\n";
 		/*
 		/*to find where the agent must move, we need to get the vectors from the agent to each auxin he has, and compare with
 		the vector from agent to goal, generating a angle which must lie between 0 (best case) and 180 (worst case)
@@ -1099,10 +1114,34 @@ void Simulation::Update() {
 
 			//now, we check if agent is stuck with another agent
 			//if so, change places
-			//@TODO: FAZER ISSO SEM COLLIDER, TROCAR AGENTE DE POSIÇÃO
-			/*if (agentIController.speed.Equals(Vector3.zero))
+			if (agents[i].speedX == 0 && agents[i].speedY == 0 && agents[i].speedZ == 0)
 			{
-				Collider[] lockHit = Physics.OverlapSphere(agentI.transform.position, agentRadius);
+				//check distance between this agent and every other agent
+				for (int j = 0; j < agents.size(); j++) {
+					//if they are too near and both with zero speed, probally stuck. Swap positions if this agent may do it
+					if (Distance(agents[i].posX, agents[i].posY, agents[i].posZ, agents[j].posX, agents[j].posY, agents[j].posZ)
+						< 0.1f && (agents[j].speedX == 0 && agents[j].speedY == 0 && agents[j].speedZ == 0) && agents[i].changePosition && i != j) {
+						std::cout << "\n LOCKED: " + agents[i].name + " with " + agents[j].name + "\n";
+						//system("PAUSE");
+
+						float posAuxX = agents[i].posX;
+						float posAuxY = agents[i].posY;
+						float posAuxZ = agents[i].posZ;
+						agents[i].posX = agents[j].posX;
+						agents[i].posY = agents[j].posY;
+						agents[i].posZ = agents[j].posZ;
+						agents[j].posX = posAuxX;
+						agents[j].posY = posAuxY;
+						agents[j].posZ = posAuxZ;
+
+						//the other agent doesnt change position
+						agents[j].changePosition = false;
+
+						break;
+					}
+				}
+
+				/*Collider[] lockHit = Physics.OverlapSphere(agentI.transform.position, agentRadius);
 				foreach(Collider loki in lockHit)
 				{
 					//if it is the Player tag (agent) and it is not the agent itself and he can change position (to avoid forever changing)
@@ -1116,14 +1155,14 @@ void Simulation::Update() {
 						agentI.transform.position = loki.gameObject.transform.position;
 						loki.gameObject.transform.position = positionA;
 					}
-				}
-			}*/
+				}*/
+			}
 
 			//walk
-			agents[i].Caminhe(((float)simulationT) / CLOCKS_PER_SEC);
+			agents[i].Caminhe((double)(1.0/fps));
 
-			std::cout << "Segundos: " << ((float)simulationT) / CLOCKS_PER_SEC << "\n";
-			std::cout << agents[i].name << ": " << agents[i].posX << "-" << agents[i].posZ << "\n";
+			//std::cout << "Segundos: " << ((float)simulationT) / CLOCKS_PER_SEC << "\n";
+			//std::cout << agents[i].name << ": " << agents[i].posX << "-" << agents[i].posZ << "\n";
 
 			//verify agent position, in relation to the goal.
 			//if the distance between them is less than 1 (arbitrary, maybe authors have a better solution), he arrived. Destroy it so
@@ -1186,25 +1225,23 @@ void Simulation::Update() {
 //save a csv exit file, with positions of all agents in function of time
 void Simulation::SaveExitFile() {
 	//get agents info
-	/*GameObject[] allAgents = GameObject.FindGameObjectsWithTag("Player");
-	if (allAgents.Length > 0)
+	if (agents.size() > 0)
 	{
 		//each line: frame, agents name, positionx, positiony, positionz, goal object name, cell name
 		//separated with ;
 		//for each agent
-		for (int i = 0; i < allAgents.Length; i++)
+		for (int i = 0; i < agents.size(); i++)
 		{
-			exitFile.WriteLine(Time.frameCount - lastFrameCount + ";" + allAgents[i].name + ";" + allAgents[i].transform.position.x + ";" +
-				allAgents[i].transform.position.y + ";" + allAgents[i].transform.position.z + ";" +
-				allAgents[i].GetComponent<AgentController>().go[0].name + ";" +
-				allAgents[i].GetComponent<AgentController>().GetCell().name);
+			exitFile << std::to_string((((float)clock() - startTime) / CLOCKS_PER_SEC) - lastFrameCount) + ";" + agents[i].name + ";" 
+				+ std::to_string(agents[i].posX) + ";" + std::to_string(agents[i].posY) + ";" + std::to_string(agents[i].posZ) + ";" +
+				agents[i].go[0]->name + ";" + agents[i].GetCell()->name + "\n";
 		}
-	}*/
+	}
 }
 
 void Simulation::SaveAgentsGoalFile(std::string agentName, std::string goalName) {
 	//we save: Agent name, Goal name, Time he arrived
-	//agentsGoalFile.WriteLine(agentName + ";" + goalName + ";" + (Time.frameCount - lastFrameCount));
+	agentsGoalFile << agentName + ";" + goalName + ";" + std::to_string((((float)clock() - startTime) / CLOCKS_PER_SEC) - lastFrameCount) + "\n";
 }
 
 /*

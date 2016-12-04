@@ -44,11 +44,9 @@ class Simulation
 		std::vector<float> verticesObstaclesY;
 		std::vector<float> verticesObstaclesZ;
 		//clock starter timer
-		clock_t t;
-		//clock simulation timer
-		clock_t simulationT;
-		//clock fps timer
-		float fpsT;
+		clock_t startTime;
+		//simulation delta time
+		double simulationTime;
 
 	//private attributes
 	private:
