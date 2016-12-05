@@ -79,8 +79,10 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ) {
 			std::cout << "Could not open agents goal file: " + agentsGoalFilename + "!\n";
 		}
 
-		//@TODO: see how to draw the obstacles and interact with them
 		//ReadOBJFile();
+		DrawObstacles();
+		//std::cout << "Qnt Obstacles: " << obstacles.size() << "\n";
+		//std::cout << "Vertice: " << obstacles[0].verticesX[0] << "\n";
 		DrawCells();
 		PlaceAuxins();
 		std::cout << "Qnt Cells: " << cells.size() << "\n";
@@ -214,7 +216,7 @@ void Simulation::DefaultValues() {
 	//save config file?
 	saveConfigFile = false;
 	//load config file?
-	loadConfigFile = true;
+	loadConfigFile = false;
 	//all simulation files directory
 	allSimulations = "Simulations/";
 	//config filename
@@ -836,7 +838,7 @@ void Simulation::DrawCells()
 			}
 		}
 	}
-
+	std::cout << "Cells Done! \n";
 	/*for (int i = 0; i < cells.size(); i++) {
 		std::cout << i << "--" << cells[i].name << " -- Qnt Markers: " << cells[i].GetAuxins()->size() << "\n";
 	}*/
@@ -912,6 +914,8 @@ void Simulation::PlaceAuxins() {
 				break;
 			}
 		}
+
+		std::cout << cells[c].name << " done adding markers!\n";
 	}
 
 	/*for (int i = 0; i < cells.size(); i++) {
@@ -1244,97 +1248,105 @@ void Simulation::SaveAgentsGoalFile(std::string agentName, std::string goalName)
 	agentsGoalFile << agentName + ";" + goalName + ";" + std::to_string((((float)clock() - startTime) / CLOCKS_PER_SEC) - lastFrameCount) + "\n";
 }
 
-/*
-//draw obstacles on the scene
-public void DrawObstacles() {
+
+//"draw" obstacles on the scene
+void Simulation::DrawObstacles() {
 	//draw rectangle
-	Vector3[] vertices = new Vector3[4];
-	vertices[0] = new Vector3(5, 0, 10);
-	vertices[1] = new Vector3(5, 0, 13);
-	vertices[2] = new Vector3(15, 0, 13);
-	vertices[3] = new Vector3(15, 0, 10);
-	DrawObstacle(vertices);
+	std::vector<float> verticesX;
+	std::vector<float> verticesY;
+	std::vector<float> verticesZ;
+
+	//set vertices
+	//vertice 1
+	verticesX.push_back(5.0f);
+	verticesY.push_back(0.0f);
+	verticesZ.push_back(10.0f);
+	//vertice 2
+	verticesX.push_back(5.0f);
+	verticesY.push_back(0.0f);
+	verticesZ.push_back(13.0f);
+	//vertice 3
+	verticesX.push_back(15.0f);
+	verticesY.push_back(0.0f);
+	verticesZ.push_back(13.0f);
+	//vertice 4
+	verticesX.push_back(15.0f);
+	verticesY.push_back(0.0f);
+	verticesZ.push_back(10.0f);
+
+	//set triangles
+	std::vector<int> triangles;
+	//triangle 1
+	triangles.push_back(0);
+	triangles.push_back(1);
+	triangles.push_back(2);
+	//triangle 2
+	triangles.push_back(2);
+	triangles.push_back(3);
+	triangles.push_back(0);
+
+	//"draw" it
+	DrawObstacle(verticesX, verticesY, verticesZ, triangles);
 
 	//draw pentagon
-	vertices = new Vector3[5];
-	vertices[0] = new Vector3(20, 0, 15);
-	vertices[1] = new Vector3(18, 0, 18);
-	vertices[2] = new Vector3(22, 0, 20);
-	vertices[3] = new Vector3(26, 0, 18);
-	vertices[4] = new Vector3(24, 0, 15);
-	DrawObstacle(vertices);
+	verticesX.clear();
+	verticesY.clear();
+	verticesZ.clear();
+	triangles.clear();
+
+	//set vertices
+	//vertice 1
+	verticesX.push_back(20.0f);
+	verticesY.push_back(0.0f);
+	verticesZ.push_back(15.0f);
+	//vertice 2
+	verticesX.push_back(18.0f);
+	verticesY.push_back(0.0f);
+	verticesZ.push_back(18.0f);
+	//vertice 3
+	verticesX.push_back(22.0f);
+	verticesY.push_back(0.0f);
+	verticesZ.push_back(20.0f);
+	//vertice 4
+	verticesX.push_back(26.0f);
+	verticesY.push_back(0.0f);
+	verticesZ.push_back(18.0f);
+	//vertice 4
+	verticesX.push_back(24.0f);
+	verticesY.push_back(0.0f);
+	verticesZ.push_back(15.0f);
+
+	//set triangles
+	//triangle 1
+	triangles.push_back(0);
+	triangles.push_back(1);
+	triangles.push_back(2);
+	//triangle 2
+	triangles.push_back(2);
+	triangles.push_back(3);
+	triangles.push_back(4);
+	//triangle 3
+	triangles.push_back(0);
+	triangles.push_back(2);
+	triangles.push_back(4);
+
+	//"draw" it
+	DrawObstacle(verticesX, verticesY, verticesZ, triangles);
 
 	//build the navmesh at runtime
-	NavMeshBuilder.BuildNavMesh();
+	//NavMeshBuilder.BuildNavMesh();
 }
 
 //draw each obstacle
 //each polygon has vertices-2 triangles
-protected void DrawObstacle(Vector3[] vertices, int[] triangles = null) {
-	GameObject obstacles = GameObject.Find("Obstacles");
-
-	GameObject go = new GameObject();
-	go.transform.parent = obstacles.transform;
-
-	go.AddComponent<MeshFilter>();
-	go.AddComponent<MeshRenderer>();
-	MeshFilter mf = go.GetComponent<MeshFilter>();
-	var mesh = new Mesh();
-	mf.mesh = mesh;
-
-	//set the vertices
-	mesh.vertices = vertices;
-
-	if (triangles == null)
-	{
-		//calc the qnt triangles
-		int qntTriangles = vertices.Length - 2;
-
-		//set all triangles vertices
-		int[] tri = new int[qntTriangles * 3];
-
-		int verticeIndex = 0;
-		//since when restart the verticeIndex we will not want to draw the same triangle, we use a multiply factor to get the next vertice
-		//TODO: NEED TO FIND A BETTER WAY, SINCE IT WILL NOT WORK FOR EVERY CASE
-		int multiplyFactor = 1;
-		for (int i = 0; i < tri.Length; i++)
-		{
-			tri[i] = verticeIndex * multiplyFactor;
-			//Debug.Log (tri[i]);
-			//if it is the last one, we will use the same vertice to start next triangle
-			if ((i + 1) % 3 != 0)
-			{
-				verticeIndex++;
-			}
-			//if vertice is out of bounds, back to 0
-			if (verticeIndex >= vertices.Length)
-			{
-				verticeIndex = 0;
-				multiplyFactor++;
-			}
-		}
-
-		//set triangles
-		mesh.triangles = tri;
-	}
-	else
-	{
-		mesh.triangles = triangles;
-
-		//obstacle has center at 0x0, so, need to place it 500 forward
-		go.transform.position = new Vector3(500f, 0, 500f);
-	}
-
-	go.AddComponent<MeshCollider>();
-	//go.GetComponent<MeshCollider>().isTrigger = true;
-	go.tag = "Obstacle";
-	go.name = "Obstacle";
-
-	//change the static navigation to draw it dinamically
-	GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.NavigationStatic);
-	GameObjectUtility.SetNavMeshArea(go, 1);
+void Simulation::DrawObstacle(std::vector<float> verticesX, std::vector<float> verticesY, std::vector<float> verticesZ, std::vector<int> triangles) {
+	//new object obstacle
+	std::string newName = "Obstacle" + std::to_string(obstacles.size());
+	Obstacle newObstacle(newName, verticesX, verticesY, verticesZ, triangles);
+	//to the global
+	obstacles.push_back(newObstacle);
 }
-
+/*
 //generate the metric between number of signs and time
 public void GenerateMetric() {
 	//get all subdirectories within the defined config directory

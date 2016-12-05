@@ -135,6 +135,7 @@ void Agent::Interaction(Sign *sign, float distance, int index)
 	deltaIntention = gama * (Sq - intentions[index]);
 
 	intentions[index] = intentions[index] + deltaIntention;
+	//std::cout << name << " com sign " << sign->GetGoal()->name << ": " << std::to_string(deltaIntention) << "\n"; system("PAUSE");
 }
 
 //walk

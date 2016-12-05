@@ -81,8 +81,7 @@ class Simulation
 		//Simulation time step
 		int fps;
 		//all obstacles
-		//@TODO: see how to draw the obstacles and interact with them
-		//GameObject[] allObstacles;
+		std::vector<Obstacle> obstacles;
 
 		/*Signs Part*/
 		//signs array
@@ -112,6 +111,8 @@ class Simulation
 		void SaveConfigFile();
 		void SaveExitFile();
 		void SaveAgentsGoalFile(std::string agentName, std::string goalName);
+		void DrawObstacles();
+		void DrawObstacle(std::vector<float> verticesX, std::vector<float> verticesY, std::vector<float> verticesZ, std::vector<int> triangles);
 		float Distance(float x1, float y1, float z1, float x2, float y2, float z2);
 		void Split(const std::string &s, char delim, std::vector<std::string> &elems);
 		float RandomFloat(float min, float max);
