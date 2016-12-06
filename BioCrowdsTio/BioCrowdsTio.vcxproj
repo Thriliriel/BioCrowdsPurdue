@@ -150,7 +150,6 @@
     <ClInclude Include="Cell.h" />
     <ClInclude Include="Goal.h" />
     <ClInclude Include="Marker.h" />
-    <ClInclude Include="Obstacle.h" />
     <ClInclude Include="Sign.h" />
     <ClInclude Include="Simulation.h" />
     <ClInclude Include="stdafx.h" />
@@ -162,7 +161,6 @@
     <ClCompile Include="Cell.cpp" />
     <ClCompile Include="Goal.cpp" />
     <ClCompile Include="Marker.cpp" />
-    <ClCompile Include="Obstacle.cpp" />
     <ClCompile Include="Sign.cpp" />
     <ClCompile Include="Simulation.cpp" />
     <ClCompile Include="stdafx.cpp">

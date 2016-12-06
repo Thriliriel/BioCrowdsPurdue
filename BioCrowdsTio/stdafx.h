@@ -17,7 +17,6 @@
 #include <vector>
 #include <math.h>
 #include <time.h>
-#include "Obstacle.h"
 #include "Goal.h"
 #include "Sign.h"
 #include "Marker.h"

@@ -53,9 +53,6 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ) {
 	//spawnPositionZ = (int)round(scenarioSizeZ - 1));//anywhere
 	spawnPositionZ = (int)round(scenarioSizeZ - (scenarioSizeZ - 2));//to make agents start near the bottom
 
-	//@TODO: see how to draw the obstacles and interact with them
-	//allObstacles = GameObject.FindGameObjectsWithTag("Obstacle");
-
 	//if loadConfigFile is checked, we do not generate the initial scenario. We load it from the Config.csv file, as well from other defined files
 	if (loadConfigFile)
 	{
@@ -79,8 +76,10 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ) {
 			std::cout << "Could not open agents goal file: " + agentsGoalFilename + "!\n";
 		}
 
-		//ReadOBJFile();
-		DrawObstacles();
+		//draw the obstacles
+		//DrawObstacles();
+		ReadOBJFile();
+
 		//precalc values to check obstacles
 		PreCalcValues();
 		//testing...
@@ -97,10 +96,13 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ) {
 		std::cout << "Qnt Cells: " << cells.size() << "\n";
 
 		//instantiante some goals
-		DrawGoal("Restaurant", 3, 0, 18);
-		DrawGoal("Theater", 27, 0, 17);
-		DrawGoal("Stadium", 5, 0, 3);
-		DrawGoal("AppleStore", 25, 0, 5);
+		DrawGoal("Restaurant", 3, 0, 18, false);
+		DrawGoal("Theater", 27, 0, 17, false);
+		DrawGoal("Stadium", 5, 0, 3, false);
+		DrawGoal("AppleStore", 25, 0, 5, false);
+
+		//generate all looking for states
+		GenerateLookingFor();
 
 		//instantiate the goal's signs
 		for (int p = 0; p < goals.size(); p++) {
@@ -132,12 +134,18 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ) {
 			float z = RandomFloat(cells[cellIndex].posZ - cellRadius, cells[cellIndex].posZ + cellRadius);
 
 			//see if there are agents in this radius. if not, instantiante
-			bool pCollider = CheckObstacle(x, 0, z, "Player", 0.5f);
+			bool pCollider = false;
+			for (int j = 0; j < agents.size(); j++) {
+				if (Distance(x, 0, z, agents[j].posX, agents[j].posY, agents[j].posZ) < 0.5f) {
+					pCollider = true;
+					break;
+				}
+			}
 
 			//even so, if we are an obstacle, cannot instantiate either
 			//just need to check for obstacle if found no player, otherwise it will not be instantiated anyway
 			if (!pCollider) {
-				pCollider = CheckObstacle(x, 0, z, "Obstacle", 0.1f);
+				pCollider = InsideObstacle(x, 0, z);
 			}
 
 			//if found a player in the radius, do not instantiante. try again
@@ -159,12 +167,33 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ) {
 				//agent goals
 				for (int j = 0; j < goals.size(); j++)
 				{
-					//add a goal
-					newAgent.go.push_back(&goals[j]);
-					//add a random intention
-					newAgent.intentions.push_back(RandomFloat(0, (intentionThreshold - 0.01)));
-					//add a random desire
-					newAgent.AddDesire(RandomFloat(0, 1));
+					//if goal is not looking for...
+					if (!goals[j].isLookingFor) {
+						//add a goal
+						newAgent.go.push_back(&goals[j]);
+						//add a random intention
+						newAgent.intentions.push_back(RandomFloat(0, (intentionThreshold - 0.01)));
+						//add a random desire
+						newAgent.AddDesire(RandomFloat(0, 1));
+					}
+				}
+
+				//get the first non taken looking for state
+				for (int j = 0; j < goals.size(); j++)
+				{
+					//if goal is looking for and is free...
+					if (goals[j].isLookingFor && !goals[j].isTaken) {
+						//add a goal
+						newAgent.go.push_back(&goals[j]);
+						//add intention 0.8
+						newAgent.intentions.push_back(0.8);
+						//add desire 1
+						newAgent.AddDesire(1);
+						//this looking for goal is taken now
+						goals[j].isTaken = true;
+						//already have one, get out!
+						break;
+					}
 				}
 
 				//reorder following intentions
@@ -180,6 +209,9 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ) {
 	for (int i = 0; i < agents.size(); i++) {
 		std::cout << agents[i].name << ": PosX - " << agents[i].posX << " -- PosZ - " << agents[i].posZ << "\n";
 	}
+	/*for (int i = 0; i < agents[0].go.size(); i++) {
+		std::cout << agents[0].go[i]->name << ": PosX - " << agents[0].go[i]->posX << " -- PosZ - " << agents[0].go[i]->posZ << " -- Intention: " << agents[0].intentions[i] << "\n";
+	}*/
 	system("PAUSE");
 
 	/*for (int p = 0; p < signs.size(); p++) {
@@ -254,6 +286,8 @@ void Simulation::DefaultValues() {
 	intentionThreshold = 0.8f;
 	//simulation time step
 	fps = 24;
+	//how much is the obstacle far away from the world origin
+	obstacleDisplacement = 500;
 }
 
 //start the simulation and control the update
@@ -270,7 +304,7 @@ void Simulation::StartSimulation() {
 		fpsTime += (((double)clock()) / CLOCKS_PER_SEC) - simulationTime;
 
 		//if time variation if bigger than defined FPS, we "reset" it and Update.
-		if (fpsTime >= (1 / fps)) {			
+		if (fpsTime >= (1 / fps)) {
 			fpsTime -= (1 / fps);
 			Update();
 		}
@@ -452,24 +486,24 @@ void Simulation::LoadConfigFile() {
 				float originalGrain = grain;
 
 				//check if there is an obstacle in this position
-				while (CheckObstacle(newPositionX, newPositionY, newPositionZ, "Obstacle", 0.1f)) {
+				while (InsideObstacle(newPositionX, newPositionY, newPositionZ)) {
 					//if there is an obstacle, test with new positions
-					if (!CheckObstacle(newPositionX + grain, newPositionY, newPositionZ, "Obstacle", 0.1f))
+					if (!InsideObstacle(newPositionX + grain, newPositionY, newPositionZ))
 					{
 						newPositionX += grain;
 						break;
 					}
-					else if (!CheckObstacle(newPositionX, newPositionY, newPositionZ - grain, "Obstacle", 0.1f))
+					else if (!InsideObstacle(newPositionX, newPositionY, newPositionZ - grain))
 					{
 						newPositionZ -= grain;
 						break;
 					}
-					else if (!CheckObstacle(newPositionX - grain, newPositionY, newPositionZ, "Obstacle", 0.1f))
+					else if (!InsideObstacle(newPositionX - grain, newPositionY, newPositionZ))
 					{
 						newPositionX -= grain;
 						break;
 					}
-					else if (!CheckObstacle(newPositionX, newPositionY, newPositionZ + grain, "Obstacle", 0.1f))
+					else if (!InsideObstacle(newPositionX, newPositionY, newPositionZ + grain))
 					{
 						newPositionZ += grain;
 						break;
@@ -652,8 +686,10 @@ void Simulation::LoadConfigFile() {
 //load cells and auxins and obstacles and goals (static stuff)
 void Simulation::LoadCellsAuxins() {
 	//read the obstacle file
-	//@TODO: see how to draw the obstacles and interact with them
-	//ReadOBJFile();
+	ReadOBJFile();
+
+	//precalc values to check obstacles
+	PreCalcValues();
 
 	// Create a new reader, tell it which file to read
 	std::ifstream theReader;
@@ -751,6 +787,8 @@ void Simulation::LoadCellsAuxins() {
 	// Done reading, close the reader and return true to broadcast success
 	theReader.close();
 
+	std::cout << "Qnt Cells: " << cells.size() << "\n";
+
 	/*for (int i = 0; i < cells.size(); i++) {
 		std::cout << cells[i].name << " -- Qnt Markers: " << cells[i].GetAuxins()->size() << "\n";
 	}*/
@@ -778,13 +816,15 @@ void Simulation::LoadCellsAuxins() {
 				Split(line, ' ', entries);
 
 				//instantiante it
-				DrawGoal(entries[0], std::stof(entries[1]), 0, std::stof(entries[2]));
+				DrawGoal(entries[0], std::stof(entries[1]), 0, std::stof(entries[2]), false);
 			}
 		}
 		lineCount++;
 	} while (line != "" && !line.empty());
 	// Done reading, close the reader and return true to broadcast success
 	theReader.close();
+
+	std::cout << "Qnt Goals: " << goals.size() << "\n";
 
 	//instantiate the goal's signs
 	for (int p = 0; p < goals.size(); p++) {
@@ -797,9 +837,9 @@ void Simulation::LoadCellsAuxins() {
 }
 
 //draw a goal
-void Simulation::DrawGoal(std::string goalName, float goalPositionX, float goalPositionY, float goalPositionZ)
+void Simulation::DrawGoal(std::string goalName, float goalPositionX, float goalPositionY, float goalPositionZ, bool isLF)
 {
-	Goal newGoal(goalName, goalPositionX, goalPositionY, goalPositionZ);
+	Goal newGoal(goalName, goalPositionX, goalPositionY, goalPositionZ, isLF);
 	goals.push_back(newGoal);
 }
 
@@ -836,7 +876,6 @@ void Simulation::DrawCells()
 
 			//if did collide it all, means we have found at least 1 obstacle in each case. So, the cell is covered by an obstacle
 			//otherwise, we go on
-			//@TODO: see how to draw the obstacles and interact with them
 			if (!collideRight || !collideLeft || !collideTop || !collideDown)
 			{
 				//new cell
@@ -893,7 +932,6 @@ void Simulation::PlaceAuxins() {
 			//if i have found no auxin, i still need to check if is there obstacles on the way
 			if (canIInstantiante)
 			{
-				//canIInstantiante = !CheckObstacle(x, 0, z, "Obstacle", auxinRadius);
 				canIInstantiante = !InsideObstacle(x, 0, z);
 			}
 
@@ -932,26 +970,6 @@ void Simulation::PlaceAuxins() {
 	}*/
 }
 
-//check if there is Obstacles or something on a given position
-//@TODO: see how to draw the obstacles and interact with them
-bool Simulation::CheckObstacle(float checkPositionX, float checkPositionY, float checkPositionZ, std::string tag, float radius)
-{
-	/*Collider[] hitCollider = Physics.OverlapSphere(checkPosition, radius);
-	bool returning = false;
-
-	foreach(Collider hit in hitCollider) {
-		if (hit.gameObject.tag == tag)
-		{
-			returning = true;
-			break;
-		}
-	}
-
-	return returning;
-	*/
-	return false;
-}
-
 //save a csv config file
 //files saved: Config.csv, Obstacles.csv, goals.dat
 void Simulation::SaveConfigFile() {
@@ -964,7 +982,7 @@ void Simulation::SaveConfigFile() {
 	//goals file
 	std::ofstream fileGoals;
 	fileGoals.open(goalsFilename);
-	
+
 	//first, we save the terrain dimensions
 	file << "terrainSize:" + std::to_string(scenarioSizeX) + "," + std::to_string(scenarioSizeZ) + "\n";
 
@@ -974,7 +992,7 @@ void Simulation::SaveConfigFile() {
 
 	std::string allAuxins = "";
 	int qntAuxins = 0;
-	
+
 	//get cells info
 	if (cells.size() > 0)
 	{
@@ -992,8 +1010,8 @@ void Simulation::SaveConfigFile() {
 			std::vector<Marker>* allCellAuxins = cells[i].GetAuxins();
 			for (int j = 0; j < allCellAuxins->size(); j++)
 			{
-				allAuxins += (*allCellAuxins).at(j).name + ";" + std::to_string((*allCellAuxins).at(j).posX) + ";" + 
-					std::to_string((*allCellAuxins).at(j).posY) + ";" + std::to_string((*allCellAuxins).at(j).posZ) + ";" + 
+				allAuxins += (*allCellAuxins).at(j).name + ";" + std::to_string((*allCellAuxins).at(j).posX) + ";" +
+					std::to_string((*allCellAuxins).at(j).posY) + ";" + std::to_string((*allCellAuxins).at(j).posZ) + ";" +
 					std::to_string(auxinRadius) + ";" + cells[i].name + "\n";
 				qntAuxins++;
 			}
@@ -1118,7 +1136,7 @@ void Simulation::Update() {
 			/*for (int v = 0; v < agents[i].vetorDistRelacaoMarcacaoX.size(); v++) {
 				std::cout << agents[i].vetorDistRelacaoMarcacaoX[v] << "\n";
 			}*/
-			
+
 			//calculate the movement vector
 			agents[i].CalculaDirecaoM();
 			//calculate speed vector
@@ -1152,26 +1170,10 @@ void Simulation::Update() {
 						break;
 					}
 				}
-
-				/*Collider[] lockHit = Physics.OverlapSphere(agentI.transform.position, agentRadius);
-				foreach(Collider loki in lockHit)
-				{
-					//if it is the Player tag (agent) and it is not the agent itself and he can change position (to avoid forever changing)
-					if (loki.gameObject.tag == "Player" && loki.gameObject.name != agentI.gameObject.name && agentIController.changePosition)
-					{
-						//the other agent will not change position in this frame
-						loki.GetComponent<AgentController>().changePosition = false;
-						Debug.Log(agentI.gameObject.name + " -- " + loki.gameObject.name);
-						//exchange!!!
-						Vector3 positionA = agentI.transform.position;
-						agentI.transform.position = loki.gameObject.transform.position;
-						loki.gameObject.transform.position = positionA;
-					}
-				}*/
 			}
 
 			//walk
-			agents[i].Caminhe((double)(1.0/fps));
+			agents[i].Caminhe((double)(1.0 / fps));
 
 			//std::cout << "Segundos: " << ((float)simulationT) / CLOCKS_PER_SEC << "\n";
 			//std::cout << agents[i].name << ": " << agents[i].posX << "-" << agents[i].posZ << "\n";
@@ -1187,7 +1189,8 @@ void Simulation::Update() {
 				//SaveAgentsGoalFile(agentI.name, goal.name);
 
 				//if we are already at the last agent goal, he arrived
-				if (agents[i].go.size() == 1)
+				//if he has 2 goals yet, but the second one is the Looking For, he arrived too
+				if (agents[i].go.size() == 1 || (agents[i].go.size() == 2 && agents[i].go[1]->name == "LookingFor"))
 				{
 					SaveAgentsGoalFile(agents[i].name, goal->name);
 					agents.erase(agents.begin() + i);
@@ -1197,28 +1200,15 @@ void Simulation::Update() {
 				else
 				{
 					//before we remove his actual go, we check if it is the looking for state.
-					//if it is, we remove it, but add a new one, because he dont know where to go yet
-					//@TODO: VER COMO FAZER O LOOKING FOR. APENAS CONTROLAR NAO VAI FUNCIONAR
-					bool newLookingFor = false;
-					/*if (agentIController.go[0].gameObject.tag == "LookingFor")
-					{
-						GameObject.Destroy(agentIController.go[0].gameObject);
-						newLookingFor = true;
-					}*/
-					agents[i].go.erase(agents[i].go.begin());
-					agents[i].intentions.erase(agents[i].intentions.begin());
-					agents[i].RemoveDesire(0);
-
-					/*if (newLookingFor) {
-						//add the Looking For state, with a random position
-						GameObject lookingFor = GenerateLookingFor();
-						agentIController.go.Add(lookingFor);
-						agentIController.intentions.Add(intentionThreshold);
-						agentIController.AddDesire(1);
-
-						//since we have a new one, reorder
-						agentIController.ReorderGoals();
-					}*/
+					//if it is, we change its position, because he doesnt know where to go yet
+					if (agents[i].go[0]->name == "LookingFor") {
+						ChangeLookingFor(agents[i].go[0]);
+					}//else, just remove it
+					else {
+						agents[i].go.erase(agents[i].go.begin());
+						agents[i].intentions.erase(agents[i].intentions.begin());
+						agents[i].RemoveDesire(0);
+					}
 				}
 			}
 		}
@@ -1244,7 +1234,7 @@ void Simulation::SaveExitFile() {
 		//for each agent
 		for (int i = 0; i < agents.size(); i++)
 		{
-			exitFile << std::to_string((((float)clock() - startTime) / CLOCKS_PER_SEC) - lastFrameCount) + ";" + agents[i].name + ";" 
+			exitFile << std::to_string((((float)clock() - startTime) / CLOCKS_PER_SEC) - lastFrameCount) + ";" + agents[i].name + ";"
 				+ std::to_string(agents[i].posX) + ";" + std::to_string(agents[i].posY) + ";" + std::to_string(agents[i].posZ) + ";" +
 				agents[i].go[0]->name + ";" + agents[i].GetCell()->name + "\n";
 		}
@@ -1263,90 +1253,33 @@ void Simulation::DrawObstacles() {
 	std::vector<float> verticesX;
 	std::vector<float> verticesY;
 	std::vector<float> verticesZ;
-
-	//set vertices
-	//vertice 1
-	verticesX.push_back(5.0f);
-	verticesY.push_back(0.0f);
-	verticesZ.push_back(10.0f);
-	//vertice 2
-	verticesX.push_back(5.0f);
-	verticesY.push_back(0.0f);
-	verticesZ.push_back(13.0f);
-	//vertice 3
-	verticesX.push_back(15.0f);
-	verticesY.push_back(0.0f);
-	verticesZ.push_back(13.0f);
-	//vertice 4
-	verticesX.push_back(15.0f);
-	verticesY.push_back(0.0f);
-	verticesZ.push_back(10.0f);
-
-	//test polygon
-	polygonX.push_back(verticesX[0]);
-	polygonX.push_back(verticesX[1]);
-	polygonX.push_back(verticesX[2]);
-	polygonX.push_back(verticesX[3]);
-	polygonZ.push_back(verticesZ[0]);
-	polygonZ.push_back(verticesZ[1]);
-	polygonZ.push_back(verticesZ[2]);
-	polygonZ.push_back(verticesZ[3]);
-
-	//set triangles
 	std::vector<int> triangles;
-	//triangle 1
-	triangles.push_back(0);
-	triangles.push_back(1);
-	triangles.push_back(2);
-	//triangle 2
-	triangles.push_back(2);
-	triangles.push_back(3);
-	triangles.push_back(0);
-
-	//"draw" it
-	DrawObstacle(verticesX, verticesY, verticesZ, triangles);
-
-	//draw pentagon
-	verticesX.clear();
-	verticesY.clear();
-	verticesZ.clear();
-	triangles.clear();
 
 	//set vertices
 	//vertice 1
-	verticesX.push_back(20.0f);
+	verticesX.push_back(5.0f);
 	verticesY.push_back(0.0f);
-	verticesZ.push_back(15.0f);
+	verticesZ.push_back(10.0f);
 	//vertice 2
-	verticesX.push_back(18.0f);
+	verticesX.push_back(5.0f);
 	verticesY.push_back(0.0f);
-	verticesZ.push_back(18.0f);
+	verticesZ.push_back(13.0f);
 	//vertice 3
-	verticesX.push_back(22.0f);
+	verticesX.push_back(15.0f);
 	verticesY.push_back(0.0f);
-	verticesZ.push_back(20.0f);
+	verticesZ.push_back(13.0f);
 	//vertice 4
-	verticesX.push_back(26.0f);
+	verticesX.push_back(15.0f);
 	verticesY.push_back(0.0f);
-	verticesZ.push_back(18.0f);
-	//vertice 4
-	verticesX.push_back(24.0f);
-	verticesY.push_back(0.0f);
-	verticesZ.push_back(15.0f);
+	verticesZ.push_back(10.0f);
 
-	//set triangles
-	//triangle 1
+	//triangles
 	triangles.push_back(0);
 	triangles.push_back(1);
 	triangles.push_back(2);
-	//triangle 2
 	triangles.push_back(2);
 	triangles.push_back(3);
-	triangles.push_back(4);
-	//triangle 3
 	triangles.push_back(0);
-	triangles.push_back(2);
-	triangles.push_back(4);
 
 	//"draw" it
 	DrawObstacle(verticesX, verticesY, verticesZ, triangles);
@@ -1355,14 +1288,22 @@ void Simulation::DrawObstacles() {
 	//NavMeshBuilder.BuildNavMesh();
 }
 
-//draw each obstacle
-//each polygon has vertices-2 triangles
+//draw each obstacle, placing its vertices on the verticesObstacles. So, signs can be instantiated on those places
 void Simulation::DrawObstacle(std::vector<float> verticesX, std::vector<float> verticesY, std::vector<float> verticesZ, std::vector<int> triangles) {
-	//new object obstacle
-	/*std::string newName = "Obstacle" + std::to_string(obstacles.size());
-	Obstacle newObstacle(newName, verticesX, verticesY, verticesZ, triangles);
-	//to the global
-	obstacles.push_back(newObstacle);*/
+	for (int i = 0; i < verticesX.size(); i++) {
+		//these one are generated in the CheckGroupVertices
+		/*verticesObstaclesX.push_back(verticesX[i]);
+		verticesObstaclesY.push_back(verticesY[i]);
+		verticesObstaclesZ.push_back(verticesZ[i]);*/
+
+		//polygon for InsideObstacle calculus
+		//@TODO: CHECK IF IT WORKS FOR 2 OR MORE OBSTACLES!! (not necessary for Purdue)
+		polygonX.push_back(verticesX[i]);
+		polygonZ.push_back(verticesZ[i]);
+	}
+
+	//triangles
+	trianglesObstacle = triangles;
 }
 /*
 //generate the metric between number of signs and time
@@ -1820,77 +1761,120 @@ public void CheckGroupVertices()
 
 	verticesObstacles = newVertices;
 }
-
+*/
 //TEST TO READ THE 4X4.OBJ
-public void ReadOBJFile()
+void Simulation::ReadOBJFile()
 {
-	StreamReader theReader = new StreamReader(Application.dataPath + "/Original/StreetBlock.obj", System.Text.Encoding.Default);
-	string line;
+	std::ifstream theReader;
+	theReader.open(allSimulations + "/StreetBlock.obj");
+	std::string line;
 	int qntVertices = 0;
 	int qntTriangles = 0;
-	Vector3[] vertices = new Vector3[qntVertices];
-	int[] triangles = new int[qntTriangles];
-	int controlVertice = 0;
-	int controlTriangle = 0;
+	std::vector<float> verticesX;
+	std::vector<float> verticesY;
+	std::vector<float> verticesZ;
+	std::vector<int> triangles;
 
-	using (theReader)
+	int lineCount = 1;
+	// While there's lines left in the text file, do this:
+	do
 	{
-		int lineCount = 1;
-		// While there's lines left in the text file, do this:
-		do
+		std::getline(theReader, line);
+
+		if (line != "" && !line.empty())
 		{
-			line = theReader.ReadLine();
-
-			if (line != null)
+			//if it contains #, it is a comment
+			if (line[0] == '#')
 			{
-				//if it contains #, it is a comment
-				if (line.Contains("#"))
+				std::vector<std::string> entries;
+				Split(line, ' ', entries);
+				if (entries[entries.size()-1] == "vertices")
 				{
-					if (line.Contains("vertices"))
-					{
-						string[] info = line.Split(' ');
-						qntVertices = System.Int32.Parse(info[1]);
-						vertices = new Vector3[qntVertices];
-					}
-					if (line.Contains("facets"))
-					{
-						string[] info = line.Split(' ');
-						qntTriangles = System.Int32.Parse(info[1]);
-						triangles = new int[qntTriangles * 3];
-					}
+					qntVertices = std::stoi(entries[entries.size() - 2]);
 				}
-				else if (line != "")
+				if (entries[entries.size() - 1] == "facets")
 				{
-					string[] entries = line.Split(' ');
-					//if it starts with v, it is vertice. else, if it starts with f, it is facet which form a triangle (hopefully!)
-					if (entries[0] == "v")
-					{
-						vertices[controlVertice] = new Vector3(System.Convert.ToSingle(entries[1]), System.Convert.ToSingle(entries[2]), System.Convert.ToSingle(entries[3]));
-						controlVertice++;
-					}
-					else if (entries[0] == "f")
-					{
-						triangles[controlTriangle] = System.Int32.Parse(entries[2]) - 1;
-						controlTriangle++;
-
-						triangles[controlTriangle] = System.Int32.Parse(entries[3]) - 1;
-						controlTriangle++;
-
-						triangles[controlTriangle] = System.Int32.Parse(entries[4]) - 1;
-						controlTriangle++;
-					}
+					qntTriangles = std::stoi(entries[entries.size() - 2]);
 				}
 			}
+			else if (line != "")
+			{
+				std::vector<std::string> entries;
+				Split(line, ' ', entries);
+				//if it starts with v, it is vertice. else, if it starts with f, it is facet which form a triangle (hopefully!)
+				if (entries[0] == "v")
+				{
+					verticesX.push_back(std::stof(entries[1]) + obstacleDisplacement);
+					verticesY.push_back(std::stof(entries[2]) + obstacleDisplacement);
+					verticesZ.push_back(std::stof(entries[3]) + obstacleDisplacement);
+				}
+				else if (entries[0] == "f")
+				{
+					//minus 1 because it starts in 1, and our code starts in 0
+					triangles.push_back(std::stoi(entries[2]) - 1);
+					triangles.push_back(std::stoi(entries[3]) - 1);
+					triangles.push_back(std::stoi(entries[4]) - 1);
+				}
+			}
+		}
 
-			lineCount++;
-		} while (line != null);
-	}
+		lineCount++;
+	} while (!theReader.eof());
 
-	DrawObstacle(vertices, triangles);
+	DrawObstacle(verticesX, verticesY, verticesZ, triangles);
+	/*for (int v = 0; v < verticesX.size(); v++) {
+		std::cout << verticesX[v] << "\n";
+	}*/
 
 	// Done reading, close the reader and return true to broadcast success
-	theReader.Close();
-}*/
+	theReader.close();
+}
+
+//generate a new looking for
+//it will be added as a goal for each agent. So, a simulation should generate qntAgents looking for goals
+void Simulation::GenerateLookingFor() {
+	//for each agent
+	for (int i = 0; i < qntAgents; i++) {
+		bool pCollider = true;
+		//while i have an obstacle on the way
+		while (pCollider) {
+			//generate the new position
+			float x = RandomFloat(0, scenarioSizeX);
+			float z = RandomFloat(0, scenarioSizeZ);
+
+			//check if it is not inside an obstacle
+			bool pCollider = InsideObstacle(x, 0, z);
+
+			//if not, new looking for!
+			if (!pCollider) {
+				DrawGoal("LookingFor", x, 0, z, true);
+				break;
+			}
+		}
+	}
+}
+
+//change the position of a looking for goal
+void Simulation::ChangeLookingFor(Goal* changeLF) {
+	bool pCollider = true;
+	//while i have an obstacle on the way
+	while (pCollider) {
+		//generate the new position
+		float x = RandomFloat(0, scenarioSizeX);
+		float z = RandomFloat(0, scenarioSizeZ);
+
+		//check if it is not inside an obstacle
+		bool pCollider = InsideObstacle(x, 0, z);
+
+		//if not, new looking for!
+		if (!pCollider) {
+			changeLF->posX = x;
+			changeLF->posY = 0;
+			changeLF->posZ = z;
+			break;
+		}
+	}
+}
 
 //distance between 2 points
 float Simulation::Distance(float x1, float y1, float z1, float x2, float y2, float z2)
@@ -1919,6 +1903,7 @@ float Simulation::RandomFloat(float min, float max)
 
 //verify if a point is inside the obstacles
 //Leandro approach (not used)
+//this approach need the 4 vertices of the obstacle. Thus, just works with quadrilaterals. Besides, would need to separate the Tharindu "blocks" (just like i did on Unity).
 /*bool Simulation::InsideObstacle(float pX, float pY, float pZ)
 {
 	int i = (pZ - C1.y)*(C2.x - C1.x) - (pX - C1.x)*(C2.y - C1.y);
@@ -1933,6 +1918,7 @@ float Simulation::RandomFloat(float min, float max)
 
 //verify if a point is inside the obstacles
 //Soraia approach (from: http://alienryderflex.com/polygon/)
+//works for any polygon, therefore, there is no need to separate the Tharindu "blocks".
 //  Globals which should be set before calling these functions:
 //
 //  int    polyCorners  =  how many corners the polygon has (no repeats)
@@ -1962,7 +1948,7 @@ float Simulation::RandomFloat(float min, float max)
 void Simulation::PreCalcValues() {
 	int   i, j = polygonX.size() - 1;
 
-	for (i = 0; i<polygonX.size(); i++) {
+	for (i = 0; i < polygonX.size(); i++) {
 		if (polygonZ[j] == polygonZ[i]) {
 			constant.push_back(polygonX[i]);
 			multiple.push_back(0);
@@ -1980,10 +1966,10 @@ bool Simulation::InsideObstacle(float pX, float pY, float pZ) {
 	int   i, j = polygonX.size() - 1;
 	bool  oddNodes = false;
 
-	for (i = 0; i<polygonX.size(); i++) {
-		if ((polygonZ[i]< pZ && polygonZ[j] >= pZ
-			|| polygonZ[j]< pZ && polygonZ[i] >= pZ)) {
-			oddNodes ^= (pZ*multiple[i] + constant[i]<pX);
+	for (i = 0; i < polygonX.size(); i++) {
+		if ((polygonZ[i] < pZ && polygonZ[j] >= pZ
+			|| polygonZ[j] < pZ && polygonZ[i] >= pZ)) {
+			oddNodes ^= (pZ*multiple[i] + constant[i] < pX);
 		}
 		j = i;
 	}

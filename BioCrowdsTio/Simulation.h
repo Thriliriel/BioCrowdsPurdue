@@ -39,10 +39,6 @@ class Simulation
 		std::string goalsFilename;
 		//exit agents/goal filename
 		std::string agentsGoalFilename;
-		//obstacle corners
-		std::vector<float> verticesObstaclesX;
-		std::vector<float> verticesObstaclesY;
-		std::vector<float> verticesObstaclesZ;
 		//clock starter timer
 		clock_t startTime;
 		//simulation delta time
@@ -80,17 +76,27 @@ class Simulation
 		float intentionThreshold;
 		//Simulation time step
 		int fps;
-		//all obstacles
-		//std::vector<Obstacle> obstacles;
 		//all obstacles vertices
+		//X vertices
 		std::vector<float> polygonX;
+		//Z vertices
 		std::vector<float> polygonZ;
+		//constant for InsideObstacle calculus
 		std::vector<float> constant;
+		//multiple for InsideObstacle calculus
 		std::vector<float> multiple;
+		//how much is the obstacle far away from the world origin
+		float obstacleDisplacement;
 
 		/*Signs Part*/
 		//signs array
 		std::vector<Sign> signs;
+		//obstacle corners
+		std::vector<float> verticesObstaclesX;
+		std::vector<float> verticesObstaclesY;
+		std::vector<float> verticesObstaclesZ;
+		//just for 1 obstacle so far
+		std::vector<int> trianglesObstacle;
 		/*End Signs Part*/
 
 	//public methods
@@ -108,16 +114,18 @@ class Simulation
 		void LoadChainSimulation();
 		void LoadConfigFile();
 		void LoadCellsAuxins();
-		void DrawGoal(std::string goalName, float goalPositionX, float goalPositionY, float goalPositionZ);
+		void DrawGoal(std::string goalName, float goalPositionX, float goalPositionY, float goalPositionZ, bool isLF);
 		void DrawSign(float signPositionX, float signPositionY, float signPositionZ, Goal* signGoal, float signAppeal);
 		void DrawCells();
 		void PlaceAuxins();
-		bool CheckObstacle(float checkPositionX, float checkPositionY, float checkPositionZ, std::string tag, float radius);
 		void SaveConfigFile();
 		void SaveExitFile();
 		void SaveAgentsGoalFile(std::string agentName, std::string goalName);
 		void DrawObstacles();
 		void DrawObstacle(std::vector<float> verticesX, std::vector<float> verticesY, std::vector<float> verticesZ, std::vector<int> triangles);
+		void ReadOBJFile();
+		void GenerateLookingFor();
+		void ChangeLookingFor(Goal* changeLF);
 		float Distance(float x1, float y1, float z1, float x2, float y2, float z2);
 		void Split(const std::string &s, char delim, std::vector<std::string> &elems);
 		float RandomFloat(float min, float max);
