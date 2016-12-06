@@ -6,7 +6,7 @@
 int main()
 {
 	//configure scenario
-	Simulation newSimulation(1000, 1000);
+	Simulation newSimulation(30, 20);
 
 	system("PAUSE");
 

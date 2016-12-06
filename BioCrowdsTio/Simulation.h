@@ -81,7 +81,12 @@ class Simulation
 		//Simulation time step
 		int fps;
 		//all obstacles
-		std::vector<Obstacle> obstacles;
+		//std::vector<Obstacle> obstacles;
+		//all obstacles vertices
+		std::vector<float> polygonX;
+		std::vector<float> polygonZ;
+		std::vector<float> constant;
+		std::vector<float> multiple;
 
 		/*Signs Part*/
 		//signs array
@@ -116,5 +121,7 @@ class Simulation
 		float Distance(float x1, float y1, float z1, float x2, float y2, float z2);
 		void Split(const std::string &s, char delim, std::vector<std::string> &elems);
 		float RandomFloat(float min, float max);
+		void PreCalcValues();
+		bool InsideObstacle(float pX, float pY, float pZ);
 };
 

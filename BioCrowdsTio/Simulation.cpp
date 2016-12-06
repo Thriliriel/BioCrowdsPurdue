@@ -81,6 +81,15 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ) {
 
 		//ReadOBJFile();
 		DrawObstacles();
+		//precalc values to check obstacles
+		PreCalcValues();
+		//testing...
+		/*if (InsideObstacle(10.0f, 0.0f, 10.001f)) {
+			std::cout << "Inside!!\n";
+		}
+		else {
+			std::cout << "Outside!!\n";
+		}*/
 		//std::cout << "Qnt Obstacles: " << obstacles.size() << "\n";
 		//std::cout << "Vertice: " << obstacles[0].verticesX[0] << "\n";
 		DrawCells();
@@ -820,17 +829,15 @@ void Simulation::DrawCells()
 			//verify if collides with some obstacle. We dont need cells in objects.
 			//for that, we need to check all 4 sides of the cell. Otherwise, we may not have cells in some free spaces (for example, half of a cell would be covered by an obstacle, so that cell
 			//would not be instantied)
-			//@TODO: see how to draw the obstacles and interact with them
-			//bool collideRight = CheckObstacle(new Vector3(newPosition.x + i + cellRadius, newPosition.y, newPosition.z + j), "Obstacle", 0.1f);
-			//bool collideLeft = CheckObstacle(new Vector3(newPosition.x + i - cellRadius, newPosition.y, newPosition.z + j), "Obstacle", 0.1f);
-			//bool collideTop = CheckObstacle(new Vector3(newPosition.x + i, newPosition.y, newPosition.z + j + cellRadius), "Obstacle", 0.1f);
-			//bool collideDown = CheckObstacle(new Vector3(newPosition.x + i, newPosition.y, newPosition.z + j - cellRadius), "Obstacle", 0.1f);
+			bool collideRight = InsideObstacle(newPositionX + i + cellRadius, newPositionY, newPositionZ + j + cellRadius);
+			bool collideLeft = InsideObstacle(newPositionX + i - cellRadius, newPositionY, newPositionZ + j + cellRadius);
+			bool collideTop = InsideObstacle(newPositionX + i + cellRadius, newPositionY, newPositionZ + j - cellRadius);
+			bool collideDown = InsideObstacle(newPositionX + i - cellRadius, newPositionY, newPositionZ + j - cellRadius);
 
 			//if did collide it all, means we have found at least 1 obstacle in each case. So, the cell is covered by an obstacle
 			//otherwise, we go on
 			//@TODO: see how to draw the obstacles and interact with them
-			//if (!collideRight || !collideLeft || !collideTop || !collideDown)
-			if (true)
+			if (!collideRight || !collideLeft || !collideTop || !collideDown)
 			{
 				//new cell
 				Cell newCell(newPositionX + i, newPositionY, newPositionZ + j, "cell" + std::to_string(i) + "-" + std::to_string(j));
@@ -886,7 +893,8 @@ void Simulation::PlaceAuxins() {
 			//if i have found no auxin, i still need to check if is there obstacles on the way
 			if (canIInstantiante)
 			{
-				canIInstantiante = !CheckObstacle(x, 0, z, "Obstacle", auxinRadius);
+				//canIInstantiante = !CheckObstacle(x, 0, z, "Obstacle", auxinRadius);
+				canIInstantiante = !InsideObstacle(x, 0, z);
 			}
 
 			//canIInstantiante???
@@ -915,7 +923,7 @@ void Simulation::PlaceAuxins() {
 			}
 		}
 
-		std::cout << cells[c].name << " done adding markers!\n";
+		std::cout << cells[c].name << " done adding markers! Qnt markers: " << cells[c].GetAuxins()->size() << "\n";
 	}
 
 	/*for (int i = 0; i < cells.size(); i++) {
@@ -1274,6 +1282,16 @@ void Simulation::DrawObstacles() {
 	verticesY.push_back(0.0f);
 	verticesZ.push_back(10.0f);
 
+	//test polygon
+	polygonX.push_back(verticesX[0]);
+	polygonX.push_back(verticesX[1]);
+	polygonX.push_back(verticesX[2]);
+	polygonX.push_back(verticesX[3]);
+	polygonZ.push_back(verticesZ[0]);
+	polygonZ.push_back(verticesZ[1]);
+	polygonZ.push_back(verticesZ[2]);
+	polygonZ.push_back(verticesZ[3]);
+
 	//set triangles
 	std::vector<int> triangles;
 	//triangle 1
@@ -1341,10 +1359,10 @@ void Simulation::DrawObstacles() {
 //each polygon has vertices-2 triangles
 void Simulation::DrawObstacle(std::vector<float> verticesX, std::vector<float> verticesY, std::vector<float> verticesZ, std::vector<int> triangles) {
 	//new object obstacle
-	std::string newName = "Obstacle" + std::to_string(obstacles.size());
+	/*std::string newName = "Obstacle" + std::to_string(obstacles.size());
 	Obstacle newObstacle(newName, verticesX, verticesY, verticesZ, triangles);
 	//to the global
-	obstacles.push_back(newObstacle);
+	obstacles.push_back(newObstacle);*/
 }
 /*
 //generate the metric between number of signs and time
@@ -1897,4 +1915,78 @@ float Simulation::RandomFloat(float min, float max)
 {
 	float r = (float)rand() / (float)RAND_MAX;
 	return min + r * (max - min);
+}
+
+//verify if a point is inside the obstacles
+//Leandro approach (not used)
+/*bool Simulation::InsideObstacle(float pX, float pY, float pZ)
+{
+	int i = (pZ - C1.y)*(C2.x - C1.x) - (pX - C1.x)*(C2.y - C1.y);
+	int j = (pZ - C2.y)*(C3.x - C2.x) - (pX - C2.x)*(C3.y - C2.y);
+	int k = (pZ - C3.y)*(C4.x - C3.x) - (pX - C3.x)*(C4.y - C3.y);
+	int l = (pZ - C4.y)*(C1.x - C4.x) - (pX - C4.x)*(C1.y - C4.y);
+	printf("%d %d %d %d", i, j, k, l);
+	if ((i >= 0 && j >= 0 && k >= 0 && l >= 0) || (i <= 0 && j <= 0 && k <= 0 && l <= 0))
+		return true;
+	return false;
+}*/
+
+//verify if a point is inside the obstacles
+//Soraia approach (from: http://alienryderflex.com/polygon/)
+//  Globals which should be set before calling these functions:
+//
+//  int    polyCorners  =  how many corners the polygon has (no repeats)
+//  float  polyX[]      =  horizontal coordinates of corners
+//  float  polyY[]      =  vertical coordinates of corners
+//  float  x, y         =  point to be tested
+//
+//  The following global arrays should be allocated before calling these functions:
+//
+//  float  constant[] = storage for precalculated constants (same size as polyX)
+//  float  multiple[] = storage for precalculated multipliers (same size as polyX)
+//
+//  (Globals are used in this example for purposes of speed.  Change as
+//  desired.)
+//
+//  USAGE:
+//  Call precalc_values() to initialize the constant[] and multiple[] arrays,
+//  then call pointInPolygon(x, y) to determine if the point is in the polygon.
+//
+//  The function will return YES if the point x,y is inside the polygon, or
+//  NO if it is not.  If the point is exactly on the edge of the polygon,
+//  then the function may return YES or NO.
+//
+//  Note that division by zero is avoided because the division is protected
+//  by the "if" clause which surrounds it.
+
+void Simulation::PreCalcValues() {
+	int   i, j = polygonX.size() - 1;
+
+	for (i = 0; i<polygonX.size(); i++) {
+		if (polygonZ[j] == polygonZ[i]) {
+			constant.push_back(polygonX[i]);
+			multiple.push_back(0);
+		}
+		else {
+			constant.push_back(polygonX[i] - (polygonZ[i] * polygonX[j]) / (polygonZ[j] - polygonZ[i]) + (polygonZ[i] * polygonX[i]) /
+				(polygonZ[j] - polygonZ[i]));
+			multiple.push_back((polygonX[j] - polygonX[i]) / (polygonZ[j] - polygonZ[i]));
+		}
+		j = i;
+	}
+}
+
+bool Simulation::InsideObstacle(float pX, float pY, float pZ) {
+	int   i, j = polygonX.size() - 1;
+	bool  oddNodes = false;
+
+	for (i = 0; i<polygonX.size(); i++) {
+		if ((polygonZ[i]< pZ && polygonZ[j] >= pZ
+			|| polygonZ[j]< pZ && polygonZ[i] >= pZ)) {
+			oddNodes ^= (pZ*multiple[i] + constant[i]<pX);
+		}
+		j = i;
+	}
+
+	return oddNodes;
 }
