@@ -37,6 +37,10 @@ class Agent
 		float lookinForX;
 		float lookinForY;
 		float lookinForZ;
+		//how many iterations is agent idle?
+		unsigned int idleTimer;
+		//how many iterations agent can stay idle?
+		unsigned int maxIdleTimer;
 
 	//private attributes
 	private:

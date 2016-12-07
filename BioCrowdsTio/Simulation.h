@@ -102,9 +102,9 @@ class Simulation
 	//public methods
 	public:
 		Simulation();
-		Simulation(float mapSizeX, float mapSizeZ);
+		Simulation(float mapSizeX, float mapSizeZ, float newCellRadius);
 		~Simulation();
-		void Update();
+		void Update(double elapsed);
 
 	//private methods
 	private:
@@ -130,7 +130,10 @@ class Simulation
 		float Distance(float x1, float y1, float z1, float x2, float y2, float z2);
 		void Split(const std::string &s, char delim, std::vector<std::string> &elems);
 		float RandomFloat(float min, float max);
+		bool Contains(std::vector<float> arrayToSearch, float needle);
+		bool Contains(std::vector<float> arrayToSearch, std::vector<float> arrayToSearch2, float needle, float needle2);
 		void PreCalcValues();
 		bool InsideObstacle(float pX, float pY, float pZ);
+		void UnlockAgent(Agent* agentToUnlock);
 };
 

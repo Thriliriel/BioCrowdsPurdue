@@ -12,7 +12,7 @@ Simulation::~Simulation()
 	agentsGoalFile.close();
 }
 
-Simulation::Simulation(float mapSizeX, float mapSizeZ) {
+Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius) {
 	//start with default values
 	DefaultValues();
 
@@ -20,6 +20,7 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ) {
 
 	scenarioSizeX = mapSizeX;
 	scenarioSizeZ = mapSizeZ;
+	cellRadius = newCellRadius;
 
 	//get all subdirectories within the defined config directory
 	_finddata_t data;
@@ -85,6 +86,7 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ) {
 
 		//check group vertices
 		CheckGroupVertices();
+		std::cout << verticesObstaclesX.size() << " -- " << verticesObstaclesZ.size() << "\n";
 
 		//precalc values to check obstacles
 		PreCalcValues();
@@ -263,7 +265,7 @@ void Simulation::DefaultValues() {
 	//radius for auxin collide
 	auxinRadius = 0.1;
 	//save config file?
-	saveConfigFile = false;
+	saveConfigFile = true;
 	//load config file?
 	loadConfigFile = false;
 	//all simulation files directory
@@ -312,10 +314,11 @@ void Simulation::StartSimulation() {
 		fpsTime += (((double)clock()) / CLOCKS_PER_SEC) - simulationTime;
 
 		//if time variation if bigger than defined FPS, we "reset" it and Update.
-		if (fpsTime >= (1 / fps)) {
+		/*if (fpsTime > (double)((double)1 / (double)fps)) {
+			Update(fpsTime);
 			fpsTime -= (1 / fps);
-			Update();
-		}
+		}*/
+		Update(1);
 	}
 }
 
@@ -368,6 +371,9 @@ void Simulation::EndSimulation() {
 			//reset scene
 			agents.clear();
 			signs.clear();
+			for (int g = 0; g < goals.size(); g++) {
+				goals[g].isTaken = false;
+			}
 			std::cout << "Loading Simulation " + std::to_string(simulationIndex) << "\n";
 			LoadChainSimulation();
 		}
@@ -432,6 +438,9 @@ void Simulation::LoadChainSimulation() {
 	Split(signsFilename, '/', sigNam);
 	/*std::cout << schNam[schNam.size() - 1] << " -- " << agfNam[agfNam.size() - 1] << " -- " << extNam[extNam.size() - 1]
 		<< " -- " << sigNam[sigNam.size() - 1] << "\n";*/
+	//since agentsgoal and exit files may not exist yet, we empty them to test after
+	agentsGoalFilename = "";
+	exitFilename = "";
 	for (int i = 0; i < allFiles.size(); i++)
 	{
 		//just csv and dat files
@@ -455,8 +464,27 @@ void Simulation::LoadChainSimulation() {
 		}
 	}//std::cout << scheduleFilename << " -- " << agentsGoalFilename << " -- " << exitFilename << " -- " << signsFilename << "\n";
 
+	//if they are empty, we restart them
+	if (exitFilename.empty()) {
+		schNam.clear();
+		Split(scheduleFilename, '/', schNam);
+		for (int f = 0; f < schNam.size()-1; f++) {
+			exitFilename += schNam[f] + '/';
+		}
+		exitFilename += extNam[extNam.size() - 1];
+	}
+	if (agentsGoalFilename.empty()) {
+		schNam.clear();
+		Split(scheduleFilename, '/', schNam);
+		for (int f = 0; f < schNam.size() - 1; f++) {
+			agentsGoalFilename += schNam[f] + '/';
+		}
+		agentsGoalFilename += agfNam[agfNam.size() - 1];
+	}
 	exitFile.open(exitFilename);
 	agentsGoalFile.open(agentsGoalFilename);
+
+	std::cout << "Loading Files\n";
 
 	LoadConfigFile();
 }
@@ -561,14 +589,33 @@ void Simulation::LoadConfigFile() {
 					if (entries[j] == "") continue;
 
 					//try to find this goal object
-					if (std::stoi(entries[j]) < goals.size())
+					//the file start at 1, so we adapt since we start at 0
+					if (std::stoi(entries[j]) <= goals.size())
 					{
 						//add a goal
-						newAgent.go.push_back(&goals[std::stoi(entries[j])]);
+						newAgent.go.push_back(&goals[std::stoi(entries[j])-1]);
 						//add intention
 						newAgent.intentions.push_back(std::stof(entries[j + 1]));
 						//add a random desire
 						newAgent.AddDesire(RandomFloat(0, 1));
+					}
+				}
+
+				//get the first non taken looking for state
+				for (int j = 0; j < goals.size(); j++)
+				{
+					//if goal is looking for and is free...
+					if (goals[j].isLookingFor && !goals[j].isTaken) {
+						//add a goal
+						newAgent.go.push_back(&goals[j]);
+						//add intention 0.8
+						newAgent.intentions.push_back(0.8);
+						//add desire 1
+						newAgent.AddDesire(1);
+						//this looking for goal is taken now
+						goals[j].isTaken = true;
+						//already have one, get out!
+						break;
 					}
 				}
 
@@ -579,7 +626,7 @@ void Simulation::LoadConfigFile() {
 			}
 		}
 		lineCount++;
-	} while (line != "" && !line.empty());
+	} while (!theReader.eof());
 	// Done reading, close the reader and return true to broadcast success
 	theReader.close();
 	/*for (int i = 0; i < agents.size(); i++) {
@@ -617,16 +664,16 @@ void Simulation::LoadConfigFile() {
 				float newPositionY = 0;
 				float newPositionZ = 0;
 				//define position based on obstacle vertices
-				//@TODO: see how to draw the obstacles and interact with them
+				//just have 1 obstacle
 				//if (allObstacles.Length > 0) {
 				if (true) {
 					//if (allObstacles.Length == 1)
 					if (true)
 					{
 						//check group vertices to find the corners
-						newPositionX = verticesObstaclesX[round(RandomFloat(0, verticesObstaclesX.size()) - 1)];
+						newPositionX = verticesObstaclesX[(int)(RandomFloat(0, verticesObstaclesX.size()) - 1)];
 						//newPositionY = verticesObstaclesY[round(RandomFloat(0, verticesObstaclesY.size()) - 1)]; //y is zero
-						newPositionZ = verticesObstaclesZ[round(RandomFloat(0, verticesObstaclesZ.size()) - 1)];
+						newPositionZ = verticesObstaclesZ[(int)(RandomFloat(0, verticesObstaclesZ.size()) - 1)];
 						bool newPositionOK = true;
 
 						//check every sign
@@ -656,6 +703,7 @@ void Simulation::LoadConfigFile() {
 						}
 					}
 					/*else
+					//just have 1 obstacle
 					{
 						//check group vertices to find the corners
 						newPosition = verticesObstacles[(int)Mathf.Floor(Random.Range(0, verticesObstacles.Length)) - 1];
@@ -671,7 +719,7 @@ void Simulation::LoadConfigFile() {
 					}*/
 				}
 
-				//will file bring sign goal
+				//file sign goal
 				std::string signGoalName = "Goal" + (std::stoi(entries[1]) - 1);
 				//find its goal
 				for (int g = 0; g < goals.size(); g++) {
@@ -682,10 +730,11 @@ void Simulation::LoadConfigFile() {
 			}
 		}
 		lineCount++;
-	} while (line != "" && !line.empty());
+	} while (!theReader.eof());
 	// Done reading, close the reader and return true to broadcast success
 	theReader.close();
 
+	std::cout << "Qnt Signs: " << signs.size() << "\n";
 	/*for (int p = 0; p < signs.size(); p++) {
 		std::cout << signs[p].GetGoal()->name << "\n";
 	}*/
@@ -694,7 +743,8 @@ void Simulation::LoadConfigFile() {
 //load cells and auxins and obstacles and goals (static stuff)
 void Simulation::LoadCellsAuxins() {
 	//read the obstacle file
-	ReadOBJFile();
+	//ReadOBJFile();
+	DrawObstacles();
 
 	//precalc values to check obstacles
 	PreCalcValues();
@@ -834,9 +884,14 @@ void Simulation::LoadCellsAuxins() {
 
 	std::cout << "Qnt Goals: " << goals.size() << "\n";
 
+	//generate all looking for states
+	GenerateLookingFor();
+
 	//instantiate the goal's signs
 	for (int p = 0; p < goals.size(); p++) {
-		DrawSign(goals[p].posX, goals[p].posY, goals[p].posZ, &goals[p], 1);
+		if (!goals[p].isLookingFor) {
+			DrawSign(goals[p].posX, goals[p].posY, goals[p].posZ, &goals[p], 1);
+		}
 	}
 
 	/*for (int i = 0; i < signs.size(); i++) {
@@ -1078,7 +1133,7 @@ void Simulation::SaveConfigFile() {
 }
 
 // Update is called once per frame
-void Simulation::Update() {
+void Simulation::Update(double elapsed) {
 	//if simulation should be running yet
 	if (!gameOver)
 	{
@@ -1087,37 +1142,23 @@ void Simulation::Update() {
 
 		//reset auxins
 		//it must be here because we need to make sure they reset before calculate the new auxins
-		for (int i = 0; i < cells.size(); i++)
+		/*for (int i = 0; i < cells.size(); i++)
 		{
 			std::vector<Marker>* allAuxins = cells[i].GetAuxins();
 			for (int j = 0; j < allAuxins->size(); j++)
 			{
 				(*allAuxins)[j].ResetAuxin();
 			}
-		}
-		/*
+		}*/
+		
 		//REMEMBER WHEN DO THIS: WHEN THE AGENT "DIES", NEED TO CLEAR THEIR AUXINS!!!
-		for (int i = 0; i < qntAgents; i++) {
-			//first, lets see if the agent is still in the scene
-			bool destroyed = false;
-			for (int j = 0; j < agentsDestroyed.Count; j++)
+		for (int i = 0; i < agents.size(); i++) {
+			std::vector<Marker*> axAge = agents[i].GetAuxins();
+			for (int j = 0; j < axAge.size(); j++)
 			{
-				if (agentsDestroyed[j] == i) destroyed = true;
-			}
-
-			//if he is
-			if (!destroyed)
-			{
-				GameObject agentI = GameObject.Find("agent" + i);
-				List<AuxinController> axAge = agentI.GetComponent<AgentController>().GetAuxins();
-				for (int j = 0; j < axAge.Count; j++)
-				{
-					axAge[j].ResetAuxin();
-				}
-				// Debug.Log(axAge.Count);
+				axAge[j]->ResetAuxin();
 			}
 		}
-		*/
 
 		//find nearest auxins for each agent
 		for (int i = 0; i < agents.size(); i++)
@@ -1173,6 +1214,7 @@ void Simulation::Update() {
 			if (agents[i].speedX == 0 && agents[i].speedY == 0 && agents[i].speedZ == 0)
 			{
 				//check distance between this agent and every other agent
+				bool agentNear = false;
 				for (int j = 0; j < agents.size(); j++) {
 					//if they are too near and both with zero speed, probally stuck. Swap positions if this agent may do it
 					if (Distance(agents[i].posX, agents[i].posY, agents[i].posZ, agents[j].posX, agents[j].posY, agents[j].posZ)
@@ -1193,13 +1235,32 @@ void Simulation::Update() {
 						//the other agent doesnt change position
 						agents[j].changePosition = false;
 
+						agentNear = true;
+
 						break;
 					}
 				}
+
+				//if agent's speed is zero and found no agent near, he is probally locked. Let's unlock him!
+				if (!agentNear) {
+					//first, check if he is too much time idle
+					if (agents[i].idleTimer > agents[i].maxIdleTimer) {
+						//unlock him
+						UnlockAgent(&agents[i]);
+						//reset counter
+						agents[i].idleTimer = 0;
+					}//otherwise, keep counting
+					else {
+						agents[i].idleTimer++;
+					}
+				}
+			}//if he moved, we reset the idleTimer too
+			else {
+				agents[i].idleTimer = 0;
 			}
 
 			//walk
-			agents[i].Caminhe((double)(1.0 / fps));
+			agents[i].Caminhe(elapsed);
 
 			//std::cout << "Segundos: " << ((float)simulationT) / CLOCKS_PER_SEC << "\n";
 			//std::cout << agents[i].name << ": " << agents[i].posX << "-" << agents[i].posZ << "\n";
@@ -1218,6 +1279,7 @@ void Simulation::Update() {
 				//if he has 2 goals yet, but the second one is the Looking For, he arrived too
 				if (agents[i].go.size() == 1 || (agents[i].go.size() == 2 && agents[i].go[1]->name == "LookingFor"))
 				{
+					std::cout << agents[i].name << " chegou no goal " << agents[i].go[0]->name << ", terminou!!\n";
 					SaveAgentsGoalFile(agents[i].name, goal->name);
 					agents.erase(agents.begin() + i);
 					//this agent is done. Back to the for
@@ -1229,10 +1291,10 @@ void Simulation::Update() {
 					//if it is, we change its position, because he doesnt know where to go yet
 					if (agents[i].go[0]->name == "LookingFor") {
 						ChangeLookingFor(agents[i].go[0]);
-						for (int j = 0; j < agents[i].go.size(); j++) {
+						/*for (int j = 0; j < agents[i].go.size(); j++) {
 							std::cout << agents[i].go[j]->name << ": PosX - " << agents[i].go[j]->posX << " -- PosZ - "
 								<< agents[i].go[j]->posZ << " -- Intention: " << agents[i].intentions[j] << "\n";
-						}
+						}*/
 					}//else, just remove it
 					else {
 						std::cout << agents[i].name << " chegou no goal " << agents[i].go[0]->name << "\n";
@@ -1424,7 +1486,6 @@ void Simulation::CheckGroupVertices()
 	std::vector<float> newVerticesX;
 	std::vector<float> newVerticesY;
 	std::vector<float> newVerticesZ;
-	int verticesIndex = 0;
 	int groupIT = 1;
 	while (groupIT <= group) {
 		//the boundary
@@ -1463,7 +1524,7 @@ void Simulation::CheckGroupVertices()
 					}
 					if (polygonZ[trianglesObstacle[i]] < minZ)
 					{
-						minZ = polygonX[trianglesObstacle[i]];
+						minZ = polygonZ[trianglesObstacle[i]];
 					}
 				}
 			}
@@ -1485,14 +1546,7 @@ void Simulation::CheckGroupVertices()
 				//new idea: find all vertices with minX, maxX, etc; and use them directly, with no bounding box
 				if (polygonX[trianglesObstacle[i]] == minX) {
 					//if it is not in the list yet, add
-					bool contains = false;
-					for (int m = 0; m < allMinX_X.size(); m++) {
-						if (allMinX_X[m] == polygonX[trianglesObstacle[i]] && allMinX_Z[m] == polygonZ[trianglesObstacle[i]]) {
-							contains = true;
-							break;
-						}
-					}
-					if (!contains)
+					if (!Contains(allMinX_X, allMinX_Z, polygonX[trianglesObstacle[i]], polygonZ[trianglesObstacle[i]]))
 					{
 						allMinX_X.push_back(polygonX[trianglesObstacle[i]]);
 						allMinX_Z.push_back(polygonZ[trianglesObstacle[i]]);
@@ -1501,14 +1555,7 @@ void Simulation::CheckGroupVertices()
 				if (polygonX[trianglesObstacle[i]] == maxX)
 				{
 					//if it is not in the list yet, add
-					bool contains = false;
-					for (int m = 0; m < allMaxX_X.size(); m++) {
-						if (allMaxX_X[m] == polygonX[trianglesObstacle[i]] && allMaxX_Z[m] == polygonZ[trianglesObstacle[i]]) {
-							contains = true;
-							break;
-						}
-					}
-					if (!contains)
+					if (!Contains(allMaxX_X, allMaxX_Z, polygonX[trianglesObstacle[i]], polygonZ[trianglesObstacle[i]]))
 					{
 						allMaxX_X.push_back(polygonX[trianglesObstacle[i]]);
 						allMaxX_Z.push_back(polygonZ[trianglesObstacle[i]]);
@@ -1516,14 +1563,8 @@ void Simulation::CheckGroupVertices()
 				}
 				if (polygonZ[trianglesObstacle[i]] == minZ)
 				{
-					bool contains = false;
-					for (int m = 0; m < allMinZ_X.size(); m++) {
-						if (allMinZ_X[m] == polygonX[trianglesObstacle[i]] && allMinZ_Z[m] == polygonZ[trianglesObstacle[i]]) {
-							contains = true;
-							break;
-						}
-					}
-					if (!contains)
+					//if it is not in the list yet, add
+					if (!Contains(allMinZ_X, allMinZ_Z, polygonX[trianglesObstacle[i]], polygonZ[trianglesObstacle[i]]))
 					{
 						allMinZ_X.push_back(polygonX[trianglesObstacle[i]]);
 						allMinZ_Z.push_back(polygonZ[trianglesObstacle[i]]);
@@ -1531,14 +1572,8 @@ void Simulation::CheckGroupVertices()
 				}
 				if (polygonZ[trianglesObstacle[i]] == maxZ)
 				{
-					bool contains = false;
-					for (int m = 0; m < allMaxZ_X.size(); m++) {
-						if (allMaxZ_X[m] == polygonX[trianglesObstacle[i]] && allMaxZ_Z[m] == polygonZ[trianglesObstacle[i]]) {
-							contains = true;
-							break;
-						}
-					}
-					if (!contains)
+					//if it is not in the list yet, add
+					if (!Contains(allMaxZ_X, allMaxZ_Z, polygonX[trianglesObstacle[i]], polygonZ[trianglesObstacle[i]]))
 					{
 						allMaxZ_X.push_back(polygonX[trianglesObstacle[i]]);
 						allMaxZ_Z.push_back(polygonZ[trianglesObstacle[i]]);
@@ -1546,175 +1581,211 @@ void Simulation::CheckGroupVertices()
 				}
 			}
 		}
-		/*
-		List<Vector3> fourVertices = new List<Vector3>();
+		
+		std::vector<float> fourVerticesX;
+		std::vector<float> fourVerticesZ;
 		//now we have the possible vertices. Lets decide which 4 to use
 		//if allMinX just have 1 vertice, just check his z value
-		if (fourVertices.Count < 4)
+		if (fourVerticesX.size() < 4)
 		{
-			if (allMinX.Count == 1)
+			if (allMinX_X.size() == 1)
 			{
-				if (!fourVertices.Contains(allMinX[0]))
+				//if it is not in the list yet, add
+				if (!Contains(fourVerticesX, fourVerticesZ, allMinX_X[0], allMinX_Z[0]))
 				{
-					fourVertices.Add(allMinX[0]);
+					fourVerticesX.push_back(allMinX_X[0]);
+					fourVerticesZ.push_back(allMinX_Z[0]);
 				}
 			}
 			//else, it must already contain bottom and top
 			else
 			{
 				//find the highest and lowest z
-				Vector3 lZ = new Vector3(1000f, 0, 1000f);
-				Vector3 hZ = new Vector3(-1000f, 0, -1000f);
-				foreach(Vector3 cont in allMinX)
-				{
-					if (cont.z < lZ.z)
+				float lZ_X = 1000;
+				float lZ_Z = 1000;
+				float hZ_X = -1000;
+				float hZ_Z = -1000;
+
+				for (int i = 0; i < allMinX_X.size(); i++) {
+					if (allMinX_Z[i] < lZ_Z)
 					{
-						lZ = cont;
+						lZ_X = allMinX_X[i];
+						lZ_Z = allMinX_Z[i];
 					}
-					if (cont.z > hZ.z)
+					if (allMinX_Z[i] > hZ_Z)
 					{
-						hZ = cont;
+						hZ_X = allMinX_X[i];
+						hZ_Z = allMinX_Z[i];
 					}
 				}
 
-				if (!fourVertices.Contains(lZ))
+				if(!Contains(fourVerticesX, fourVerticesZ, lZ_X, lZ_Z))
 				{
-					fourVertices.Add(lZ);
+					fourVerticesX.push_back(lZ_X);
+					fourVerticesZ.push_back(lZ_Z);
 				}
-				if (!fourVertices.Contains(hZ))
+				if (!Contains(fourVerticesX, fourVerticesZ, hZ_X, hZ_Z))
 				{
-					fourVertices.Add(hZ);
+					fourVerticesX.push_back(hZ_X);
+					fourVerticesZ.push_back(hZ_Z);
 				}
 			}
 		}
 
 		//if allMaxX just have 1 vertice, just check his z value
-		if (fourVertices.Count < 4)
+		if (fourVerticesX.size() < 4)
 		{
 			if (allMaxX_X.size() == 1)
 			{
-				if (!fourVertices.Contains(allMaxX[0]))
+				if (!Contains(fourVerticesX, fourVerticesZ, allMaxX_X[0], allMaxX_Z[0]))
 				{
-					fourVertices.Add(allMaxX[0]);
+					fourVerticesX.push_back(allMaxX_X[0]);
+					fourVerticesZ.push_back(allMaxX_Z[0]);
 				}
 			}
 			//else, it must already contain bottom and top
 			else
 			{
 				//find the highest and lowest z
-				Vector3 lZ = new Vector3(1000f, 0, 1000f);
-				Vector3 hZ = new Vector3(-1000f, 0, -1000f);
-				foreach(Vector3 cont in allMaxX)
-				{
-					if (cont.z < lZ.z)
+				float lZ_X = 1000;
+				float lZ_Z = 1000;
+				float hZ_X = -1000;
+				float hZ_Z = -1000;
+
+				for (int i = 0; i < allMaxX_X.size(); i++) {
+					if (allMaxX_Z[i] < lZ_Z)
 					{
-						lZ = cont;
+						lZ_X = allMaxX_X[i];
+						lZ_Z = allMaxX_Z[i];
 					}
-					if (cont.z > hZ.z)
+					if (allMaxX_Z[i] > hZ_Z)
 					{
-						hZ = cont;
+						hZ_X = allMaxX_X[i];
+						hZ_Z = allMaxX_Z[i];
 					}
 				}
-				if (!fourVertices.Contains(lZ))
+
+				if (!Contains(fourVerticesX, fourVerticesZ, lZ_X, lZ_Z))
 				{
-					fourVertices.Add(lZ);
+					fourVerticesX.push_back(lZ_X);
+					fourVerticesZ.push_back(lZ_Z);
 				}
-				if (!fourVertices.Contains(hZ))
+				if (!Contains(fourVerticesX, fourVerticesZ, hZ_X, hZ_Z))
 				{
-					fourVertices.Add(hZ);
+					fourVerticesX.push_back(hZ_X);
+					fourVerticesZ.push_back(hZ_Z);
 				}
 			}
 		}
 
-		if (fourVertices.Count < 4)
+		if (fourVerticesX.size() < 4)
 		{
 			//if allMinZ just have 1 vertice, just check his x value
-			if (allMinZ.Count == 1)
+			if (allMinZ_X.size() == 1)
 			{
-				if (!fourVertices.Contains(allMinZ[0]))
+				if (!Contains(fourVerticesX, fourVerticesZ, allMinZ_X[0], allMinZ_Z[0]))
 				{
-					fourVertices.Add(allMinZ[0]);
+					fourVerticesX.push_back(allMinZ_X[0]);
+					fourVerticesZ.push_back(allMinZ_Z[0]);
 				}
 			}
 			//else, it must already contain left and right
 			else
 			{
-				//find the highest and lowest z
-				Vector3 lX = new Vector3(1000f, 0, 1000f);
-				Vector3 hX = new Vector3(-1000f, 0, -1000f);
-				foreach(Vector3 cont in allMinZ)
-				{
-					if (cont.x < lX.x)
+				//find the highest and lowest x
+				float lX_X = 1000;
+				float lX_Z = 1000;
+				float hX_X = -1000;
+				float hX_Z = -1000;
+
+				for (int i = 0; i < allMinZ_X.size(); i++) {
+					if (allMinZ_X[i] < lX_X)
 					{
-						lX = cont;
+						lX_X = allMinZ_X[i];
+						lX_Z = allMinZ_Z[i];
 					}
-					if (cont.x > hX.x)
+					if (allMinZ_X[i] > hX_X)
 					{
-						hX = cont;
+						hX_X = allMinZ_X[i];
+						hX_Z = allMinZ_Z[i];
 					}
 				}
-				if (!fourVertices.Contains(lX))
+
+				if (!Contains(fourVerticesX, fourVerticesZ, lX_X, lX_Z))
 				{
-					fourVertices.Add(lX);
+					fourVerticesX.push_back(lX_X);
+					fourVerticesZ.push_back(lX_Z);
 				}
-				if (!fourVertices.Contains(hX))
+				if (!Contains(fourVerticesX, fourVerticesZ, hX_X, hX_Z))
 				{
-					fourVertices.Add(hX);
+					fourVerticesX.push_back(hX_X);
+					fourVerticesZ.push_back(hX_Z);
 				}
 			}
 		}
 
-		if (fourVertices.Count < 4)
+		if (fourVerticesX.size() < 4)
 		{
 			//if allMaxZ just have 1 vertice, just check his x value
-			if (allMaxZ.Count == 1)
+			if (allMaxZ_X.size() == 1)
 			{
-				if (!fourVertices.Contains(allMaxZ[0]))
+				if (!Contains(fourVerticesX, fourVerticesZ, allMaxZ_X[0], allMaxZ_Z[0]))
 				{
-					fourVertices.Add(allMaxZ[0]);
+					fourVerticesX.push_back(allMaxZ_X[0]);
+					fourVerticesZ.push_back(allMaxZ_Z[0]);
 				}
 			}
 			//else, it must already contain left and right
 			else
 			{
-				//find the highest and lowest z
-				Vector3 lX = new Vector3(1000f, 0, 1000f);
-				Vector3 hX = new Vector3(-1000f, 0, -1000f);
-				foreach(Vector3 cont in allMaxZ)
-				{
-					if (cont.x < lX.x)
+				//find the highest and lowest x
+				float lX_X = 1000;
+				float lX_Z = 1000;
+				float hX_X = -1000;
+				float hX_Z = -1000;
+
+				for (int i = 0; i < allMaxZ_X.size(); i++) {
+					if (allMaxZ_X[i] < lX_X)
 					{
-						lX = cont;
+						lX_X = allMaxZ_X[i];
+						lX_Z = allMaxZ_Z[i];
 					}
-					if (cont.x > hX.x)
+					if (allMaxZ_X[i] > hX_X)
 					{
-						hX = cont;
+						hX_X = allMaxZ_X[i];
+						hX_Z = allMaxZ_Z[i];
 					}
 				}
-				if (!fourVertices.Contains(lX))
+
+				if (!Contains(fourVerticesX, fourVerticesZ, lX_X, lX_Z))
 				{
-					fourVertices.Add(lX);
+					fourVerticesX.push_back(lX_X);
+					fourVerticesZ.push_back(lX_Z);
 				}
-				if (!fourVertices.Contains(hX))
+				if (!Contains(fourVerticesX, fourVerticesZ, hX_X, hX_Z))
 				{
-					fourVertices.Add(hX);
+					fourVerticesX.push_back(hX_X);
+					fourVerticesZ.push_back(hX_Z);
 				}
 			}
 		}
 
 		//now, assign the values
-		foreach(Vector3 four in fourVertices)
-		{
-			newVertices[verticesIndex] = four + new Vector3(500, 0, 500);
-			verticesIndex++;
-		}*/
+		for (int i = 0; i < fourVerticesX.size(); i++) {
+			newVerticesX.push_back(fourVerticesX[i]);
+			newVerticesY.push_back(0);
+			newVerticesZ.push_back(fourVerticesZ[i]);
+		}
 
 		groupIT++;
 	}
 
 	std::cout << "Finished to check group vertices!\n";
 
-	//verticesObstacles = newVertices;
+	//ready to go
+	verticesObstaclesX = newVerticesX;
+	verticesObstaclesY = newVerticesY;
+	verticesObstaclesZ = newVerticesZ;
 }
 
 //TEST TO READ THE 4X4.OBJ
@@ -1856,6 +1927,31 @@ float Simulation::RandomFloat(float min, float max)
 	return min + r * (max - min);
 }
 
+//verify if needle is inside arrayToSearch
+bool Simulation::Contains(std::vector<float> arrayToSearch, float needle) {
+	bool contains = false;
+	for (int m = 0; m < arrayToSearch.size(); m++) {
+		if (arrayToSearch[m] == needle) {
+			contains = true;
+			break;
+		}
+	}
+	return contains;
+}
+
+//verify if needle is inside arrayToSearch AND needle2 inside arrayToSeach2
+//both arrays need to have the same size!!!
+bool Simulation::Contains(std::vector<float> arrayToSearch, std::vector<float> arrayToSearch2, float needle, float needle2) {
+	bool contains = false;
+	for (int m = 0; m < arrayToSearch.size(); m++) {
+		if (arrayToSearch[m] == needle && arrayToSearch2[m] == needle2) {
+			contains = true;
+			break;
+		}
+	}
+	return contains;
+}
+
 //verify if a point is inside the obstacles
 //Leandro approach (not used)
 //this approach need the 4 vertices of the obstacle. Thus, just works with quadrilaterals. Besides, would need to separate the Tharindu "blocks" (just like i did on Unity).
@@ -1930,4 +2026,41 @@ bool Simulation::InsideObstacle(float pX, float pY, float pZ) {
 	}
 
 	return oddNodes;
+}
+
+//unlock agent if he stops beacuse an obstacle
+//@TODO: A* to avoid it
+void Simulation::UnlockAgent(Agent* agentToUnlock) {
+	std::cout << agentToUnlock->name << " trancou!\n";
+	while (true) {
+		//generate a new random position
+		float x = RandomFloat(0, scenarioSizeX);
+		float z = RandomFloat(0, scenarioSizeZ);
+
+		//see if there are agents in this radius. if not, new position
+		bool pCollider = false;
+		for (int j = 0; j < agents.size(); j++) {
+			if (Distance(x, 0, z, agents[j].posX, agents[j].posY, agents[j].posZ) < 0.5f) {
+				pCollider = true;
+				break;
+			}
+		}
+
+		//even so, if we are an obstacle, cannot change position either
+		//just need to check for obstacle if found no player, otherwise it will not be changed anyway
+		if (!pCollider) {
+			pCollider = InsideObstacle(x, 0, z);
+		}
+
+		//if found, yay! go on
+		if (!pCollider) {
+			agentToUnlock->posX = x;
+			agentToUnlock->posY = 0;
+			agentToUnlock->posZ = z;
+
+			std::cout << agentToUnlock->name << " nova posicao: " << x << "--" << z << "\n";
+
+			break;
+		}
+	}
 }

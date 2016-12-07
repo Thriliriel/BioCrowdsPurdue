@@ -5,6 +5,8 @@ Agent::Agent()
 	//set inicial values
 	valorDenominadorW = 0;
 	denominadorW = false;
+	idleTimer = 0;
+	maxIdleTimer = 30;
 }
 
 //initialize with its new position
@@ -23,10 +25,18 @@ Agent::Agent(float newPosX, float newPosY, float newPosZ, std::string newName) {
 	speedY = 0;
 	speedZ = 0;
 	fieldOfView = 5;
+	idleTimer = 0;
+	maxIdleTimer = 30;
 }
 
 Agent::~Agent()
 {
+	//iterate all cell auxins to check distance between auxins and agent
+	for (int i = 0; i < myAuxins.size(); i++)
+	{
+		myAuxins[i]->ResetAuxin();
+	}
+	myAuxins.clear();
 }
 
 void Agent::Start() {
@@ -141,14 +151,14 @@ void Agent::Interaction(Sign *sign, float distance, int index)
 //walk
 void Agent::Caminhe(float tempo)
 {
-	std::cout << name << ": SpeedX - " << speedX << " -- SpeedZ - " << speedZ << "-- Tempo: " << tempo << "\n";
-	/*posX += speedX*tempo;
+	//std::cout << name << ": SpeedX - " << speedX << " -- SpeedZ - " << speedZ << "-- Tempo: " << tempo << "\n";
+	posX += speedX*tempo;
 	posY += speedY*tempo;
-	posZ += speedZ*tempo;*/
-	posX += speedX;
+	posZ += speedZ*tempo;
+	/*posX += speedX;
 	posY += speedY;
-	posZ += speedZ;
-	std::cout << name << ": PosX - " << posX << " -- PosZ - " << posZ << "-- Tempo: " << tempo << "\n";
+	posZ += speedZ;*/
+	//std::cout << name << ": PosX - " << posX << " -- PosZ - " << posZ << "-- Tempo: " << tempo << "\n";
 }
 
 //The calculation formula starts here
@@ -228,7 +238,8 @@ void Agent::CalculaVelocidade()
 	float moduloM = Distance(mX, mY, mZ, 0, 0, 0);
 	//if (name == "agent0") std::cout << mX << " -- " << mZ << "\n";
 	//multiply for PI
-	float s = moduloM * 3.14f;
+	//float s = moduloM * 3.14f;
+	float s = moduloM;
 
 	//if it is bigger than maxSpeed, use maxSpeed instead
 	if (s > maxSpeed)
@@ -414,7 +425,6 @@ void Agent::RemoveDesire(int index)
 {
 	desire.erase(desire.begin() + index);
 }
-
 //distance between 2 points
 float Agent::Distance(float x1, float y1, float z1, float x2, float y2, float z2)
 {
