@@ -59,6 +59,9 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ) {
 		//draw obstacles, auxins, cells and goals
 		LoadCellsAuxins();
 
+		//check group vertices
+		CheckGroupVertices();
+
 		//start from the first one
 		LoadChainSimulation();
 	}
@@ -79,6 +82,9 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ) {
 		//draw the obstacles
 		//DrawObstacles();
 		ReadOBJFile();
+
+		//check group vertices
+		CheckGroupVertices();
 
 		//precalc values to check obstacles
 		PreCalcValues();
@@ -106,7 +112,9 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ) {
 
 		//instantiate the goal's signs
 		for (int p = 0; p < goals.size(); p++) {
-			DrawSign(goals[p].posX, goals[p].posY, goals[p].posZ, &goals[p], 1);
+			if (!goals[p].isLookingFor) {
+				DrawSign(goals[p].posX, goals[p].posY, goals[p].posZ, &goals[p], 1);
+			}
 		}
 
 		//instantiante some signs
@@ -262,7 +270,7 @@ void Simulation::DefaultValues() {
 	allSimulations = "Simulations/";
 	//config filename
 	configFilename = allSimulations + "Config.csv";
-	//obstacles filename
+	//obstacles filename (probally useless since it is bringing the Tharindu´s file)
 	obstaclesFilename = allSimulations + "Obstacles.csv";
 	//agents and schedule filename
 	scheduleFilename = allSimulations + "sign_0/agents.dat";
@@ -977,8 +985,8 @@ void Simulation::SaveConfigFile() {
 	std::ofstream file;
 	file.open(configFilename);
 	//obstacles file
-	//std::ofstream fileObstacles;
-	//fileObstacles.open(obstaclesFilename);
+	std::ofstream fileObstacles;
+	fileObstacles.open(obstaclesFilename);
 	//goals file
 	std::ofstream fileGoals;
 	fileGoals.open(goalsFilename);
@@ -1025,38 +1033,33 @@ void Simulation::SaveConfigFile() {
 	file.close();
 
 	//get obstacles info
-	//@TODO: ver como fazer os obstaculos
-	/*
-	if (allObstacles.Length > 0)
+	//@TODO: JUST ONE OBSTACLE SO FAR. SEE IF IT WORKS FOR MORE THAN 1 (not necessary for Purdue)
+	if (polygonX.size() > 0)
 	{
 		//separated with ;
-		fileObstacles.WriteLine("qntObstacles:" + allObstacles.Length);
-		//for each obstacle
-		for (int i = 0; i < allObstacles.Length; i++)
-		{
-			//new line for the obstacle name
-			fileObstacles.WriteLine("\nObstacle");
-			//new line for the qnt vertices
-			Vector3[] vertices = allObstacles[i].GetComponent<MeshFilter>().mesh.vertices;
-			fileObstacles.WriteLine("qntVertices:" + vertices.Length);
-			//for each vertice, one new line
-			for (int j = 0; j < vertices.Length; j++)
-			{
-				fileObstacles.WriteLine(vertices[j].x + ";" + vertices[j].y + ";" + vertices[j].z);
-			}
+		fileObstacles << "qntObstacles:1\n";
+		//new line for the obstacle name
+		fileObstacles << "\nObstacle\n";
+		//new line for the qnt vertices
+		fileObstacles << "qntVertices:" + std::to_string(polygonX.size()) + "\n";
 
-			//new line for the qnt triangles
-			int[] triangles = allObstacles[i].GetComponent<MeshFilter>().mesh.triangles;
-			fileObstacles.WriteLine("qntTriangles:" + triangles.Length);
-			//for each triangle, one new line
-			for (int j = 0; j < triangles.Length; j++)
-			{
-				fileObstacles.WriteLine(triangles[j]);
-			}
+		//for each vertice
+		for (int i = 0; i < polygonX.size(); i++)
+		{
+			fileObstacles << std::to_string(polygonX[i]) + ";0;" + std::to_string(polygonZ[i]) + "\n";
+		}
+
+		//new line for the qnt triangles
+		fileObstacles << "qntTriangles:" + std::to_string(trianglesObstacle.size()) + "\n";
+
+		//for each triangle
+		for (int i = 0; i < trianglesObstacle.size(); i++)
+		{
+			fileObstacles << std::to_string(trianglesObstacle[i]) + "\n";
 		}
 	}
 
-	fileObstacles.Close();*/
+	fileObstacles.close();
 
 	//get goals info
 	if (goals.size() > 0)
@@ -1092,6 +1095,29 @@ void Simulation::Update() {
 				(*allAuxins)[j].ResetAuxin();
 			}
 		}
+		/*
+		//REMEMBER WHEN DO THIS: WHEN THE AGENT "DIES", NEED TO CLEAR THEIR AUXINS!!!
+		for (int i = 0; i < qntAgents; i++) {
+			//first, lets see if the agent is still in the scene
+			bool destroyed = false;
+			for (int j = 0; j < agentsDestroyed.Count; j++)
+			{
+				if (agentsDestroyed[j] == i) destroyed = true;
+			}
+
+			//if he is
+			if (!destroyed)
+			{
+				GameObject agentI = GameObject.Find("agent" + i);
+				List<AuxinController> axAge = agentI.GetComponent<AgentController>().GetAuxins();
+				for (int j = 0; j < axAge.Count; j++)
+				{
+					axAge[j].ResetAuxin();
+				}
+				// Debug.Log(axAge.Count);
+			}
+		}
+		*/
 
 		//find nearest auxins for each agent
 		for (int i = 0; i < agents.size(); i++)
@@ -1203,8 +1229,13 @@ void Simulation::Update() {
 					//if it is, we change its position, because he doesnt know where to go yet
 					if (agents[i].go[0]->name == "LookingFor") {
 						ChangeLookingFor(agents[i].go[0]);
+						for (int j = 0; j < agents[i].go.size(); j++) {
+							std::cout << agents[i].go[j]->name << ": PosX - " << agents[i].go[j]->posX << " -- PosZ - "
+								<< agents[i].go[j]->posZ << " -- Intention: " << agents[i].intentions[j] << "\n";
+						}
 					}//else, just remove it
 					else {
+						std::cout << agents[i].name << " chegou no goal " << agents[i].go[0]->name << "\n";
 						agents[i].go.erase(agents[i].go.begin());
 						agents[i].intentions.erase(agents[i].intentions.begin());
 						agents[i].RemoveDesire(0);
@@ -1291,11 +1322,6 @@ void Simulation::DrawObstacles() {
 //draw each obstacle, placing its vertices on the verticesObstacles. So, signs can be instantiated on those places
 void Simulation::DrawObstacle(std::vector<float> verticesX, std::vector<float> verticesY, std::vector<float> verticesZ, std::vector<int> triangles) {
 	for (int i = 0; i < verticesX.size(); i++) {
-		//these one are generated in the CheckGroupVertices
-		/*verticesObstaclesX.push_back(verticesX[i]);
-		verticesObstaclesY.push_back(verticesY[i]);
-		verticesObstaclesZ.push_back(verticesZ[i]);*/
-
 		//polygon for InsideObstacle calculus
 		//@TODO: CHECK IF IT WORKS FOR 2 OR MORE OBSTACLES!! (not necessary for Purdue)
 		polygonX.push_back(verticesX[i]);
@@ -1305,98 +1331,28 @@ void Simulation::DrawObstacle(std::vector<float> verticesX, std::vector<float> v
 	//triangles
 	trianglesObstacle = triangles;
 }
-/*
-//generate the metric between number of signs and time
-public void GenerateMetric() {
-	//get all subdirectories within the defined config directory
-	allDirs = Directory.GetDirectories(Application.dataPath + "/" + allSimulations);
-
-	//for each sim directory
-	foreach(string dir in allDirs)
-	{
-		//we take the AgentsGoal file for information
-		StreamReader theReader = new StreamReader(dir + "/AgentsGoal.csv", System.Text.Encoding.Default);
-		float timeCount = 0;
-		int lineCount = 0;
-		string line;
-
-		using (theReader)
-		{
-			do
-			{
-				//we get the updated simulation Index
-				line = theReader.ReadLine();
-				if (line != null && line != "")
-				{
-					string[] info = line.Split(';');
-					//sums up the arrival times
-					timeCount += System.Int32.Parse(info[2]);
-					lineCount++;
-				}
-			} while (line != null);
-		}
-		theReader.Close();
-
-		//now, we take the signs file for information about how many signs were
-		theReader = new StreamReader(dir + "/signs.dat", System.Text.Encoding.Default);
-		int qntSigns = 0;
-
-		using (theReader)
-		{
-			do
-			{
-				//we get the updated simulation Index
-				line = theReader.ReadLine();
-				if (line != null && line != "")
-				{
-					qntSigns = System.Int32.Parse(line);
-					//just need to read the first line, which has the qnt signs
-					break;
-				}
-			} while (line != null);
-		}
-		theReader.Close();
-
-		//mean time
-		timeCount /= lineCount;
-
-		//open metrci file to save info each frame
-		exitFile = File.CreateText(dir + "/metric.csv");
-		exitFile.WriteLine("Mean Time: " + timeCount);
-		exitFile.WriteLine("Qnt Signs: " + qntSigns);
-		//TODO: DEFINE FORMULA
-		exitFile.WriteLine("Metric value: " + (timeCount * qntSigns));
-		exitFile.Close();
-	}
-}
 
 //check group vertices to find the corners
-//TODO: SEE WHY IT IS CREATING MORE GROUPS THAN IT SHOULD
-public void CheckGroupVertices()
+//@TODO: JUST WORKS FOR 1 OBSTACLE! NEED TO SEE IF CAN DO FOR 2 OR MORE (not necessary for Purdue)
+void Simulation::CheckGroupVertices()
 {
-	allObstacles = GameObject.FindGameObjectsWithTag("Obstacle");
-	//first obstacle, vertices and triangles
-	Vector3[] vertices = allObstacles[0].GetComponent<MeshFilter>().sharedMesh.vertices;
-	int[] triangles = allObstacles[0].GetComponent<MeshFilter>().sharedMesh.triangles;
-
-	int[] groupTriangles = new int[triangles.Length];
+	std::vector<int> groupTriangles;
 	//start each index with 0
-	for (int i = 0; i < groupTriangles.Length; i++) {
-		groupTriangles[i] = 0;
+	for (int i = 0; i < trianglesObstacle.size(); i++) {
+		groupTriangles.push_back(0);
 	}
 
 	int group = 0;
 
-	float elapsed = 0f;
+	std::cout << "Starting to check group vertices!\n";
 
 	//go through the triangles checking if they are related each other
 	while (true)
 	{
 		bool die = true;
-		//int ind = 0;
 
 		//check if we need to update group value
-		for (int i = 0; i < groupTriangles.Length; i = i + 3)
+		for (int i = 0; i < groupTriangles.size(); i = i + 3)
 		{
 			//if there is at least one zero value yet, need to keep going
 			if (groupTriangles[i] == 0)
@@ -1414,28 +1370,27 @@ public void CheckGroupVertices()
 			}
 		}
 
-		//if there are no more zero values, or time is up, break;
-		if (die || elapsed > 600)
+		//if there are no more zero values break;
+		if (die)
 		{
-			Debug.Log(elapsed);
 			break;
 		}
 
 		//for each triangle, we get it...
-		for (int i = 0; i < triangles.Length; i = i + 3)
+		for (int i = 0; i < trianglesObstacle.size(); i = i + 3)
 		{
-			int triangleI1 = triangles[i];
-			int triangleI2 = triangles[i + 1];
-			int triangleI3 = triangles[i + 2];
+			int triangleI1 = trianglesObstacle[i];
+			int triangleI2 = trianglesObstacle[i + 1];
+			int triangleI3 = trianglesObstacle[i + 2];
 
 			//...to compare with other triangles
-			for (int j = 0; j < triangles.Length; j = j + 3)
+			for (int j = 0; j < trianglesObstacle.size(); j = j + 3)
 			{
 				if (i != j)
 				{
-					int triangleJ1 = triangles[j];
-					int triangleJ2 = triangles[j + 1];
-					int triangleJ3 = triangles[j + 2];
+					int triangleJ1 = trianglesObstacle[j];
+					int triangleJ2 = trianglesObstacle[j + 1];
+					int triangleJ3 = trianglesObstacle[j + 2];
 
 					//super if to see if the 2 triangles have any vertice in common
 					if (triangleJ1 == triangleI1 || triangleJ1 == triangleI2 || triangleJ1 == triangleI3 ||
@@ -1460,308 +1415,308 @@ public void CheckGroupVertices()
 				}
 			}
 		}
-
-		elapsed += Time.deltaTime;
 	}
 
-	//Debug.Log(group);
+	std::cout << std::to_string(group) << "\n";
 
-	for (int i = 0; i < groupTriangles.Length; i++)
-	{
-		//1 - OK
-		//2 - OK
-		//3 - WRONG! parte de baixo do bloco do grupo 2!
-		//4 - OK
-		//5 - WRONG! parte direita do bloco do grupo 4!
-		//6 - OK
-		//7 - WRONG! parte direita do bloco do grupo 6!
-		//8 - OK
-		//9 - WRONG! parte direita do bloco do grupo 8!
-		//10 - OK
-		//11 - WRONG! parte direita do bloco do grupo 10!
-		//12 - OK
-		//13 - OK
-		//14 - WRONG! parte esquerda do bloco do grupo 13!
-		//15 - WRONG! parte de cima do bloco do grupo 13!
-		//16 - OK
-		//17 - OK
-		//18 - OK
-		//19 - OK
-		//20 - WRONG! parte direita do bloco do grupo 19!
-		//21 - OK
-		//22 - OK
-		//23 - OK
-		//24 - OK
-		//25 - OK
-		//26 - OK
-		//27 - WRONG! parte esquerda do bloco do grupo 26!
-		//OK = 18!!!
-	}
-
-	//FOR NOW: group set static, while we try to figure it out
-	Vector3[] newVertices = new Vector3[group * 4]; //group*4
+	//qnt groups * 4, since need to find the "bounding box" of each block
+	//will not use the bouding box itself, but the idea it bears
+	std::vector<float> newVerticesX;
+	std::vector<float> newVerticesY;
+	std::vector<float> newVerticesZ;
 	int verticesIndex = 0;
 	int groupIT = 1;
 	while (groupIT <= group) {
-		//FOR NOW: get the wrong groups out, while we try to figure it out
-		if (groupIT != 3 && groupIT != 5 && groupIT != 7 && groupIT != 9 && groupIT != 11 && groupIT != 14 && groupIT != 15 && groupIT != 20 &&
-			groupIT != 27 || true)
+		//the boundary
+		float maxX = 0;
+		float maxZ = 0;
+		float minX = 0;
+		float minZ = 0;
+
+		bool first = true;
+		//here, we get the boundary
+		for (int i = 0; i < groupTriangles.size(); i++)
 		{
-			//the boundary
-			float maxX = 0;
-			float maxZ = 0;
-			float minX = 0;
-			float minZ = 0;
-
-			bool first = true;
-			//here, we get the boundary
-			for (int i = 0; i < groupTriangles.Length; i++)
+			if (groupTriangles[i] == groupIT)
 			{
-				if (groupTriangles[i] == groupIT)
+				if (first)
 				{
-					if (first)
-					{
-						maxX = vertices[triangles[i]].x;
-						maxZ = vertices[triangles[i]].z;
-						minX = vertices[triangles[i]].x;
-						minZ = vertices[triangles[i]].z;
-						first = false;
-					}
-					else
-					{
-						if (vertices[triangles[i]].x > maxX)
-						{
-							maxX = vertices[triangles[i]].x;
-						}
-						if (vertices[triangles[i]].x < minX)
-						{
-							minX = vertices[triangles[i]].x;
-						}
-						if (vertices[triangles[i]].z > maxZ)
-						{
-							maxZ = vertices[triangles[i]].z;
-						}
-						if (vertices[triangles[i]].z < minZ)
-						{
-							minZ = vertices[triangles[i]].z;
-						}
-					}
+					maxX = polygonX[trianglesObstacle[i]];
+					maxZ = polygonZ[trianglesObstacle[i]];
+					minX = polygonX[trianglesObstacle[i]];
+					minZ = polygonZ[trianglesObstacle[i]];
+					first = false;
 				}
-			}
-
-			//lists for the vertices which belong the boundary
-			List<Vector3> allMinX = new List<Vector3>();
-			List<Vector3> allMaxX = new List<Vector3>();
-			List<Vector3> allMinZ = new List<Vector3>();
-			List<Vector3> allMaxZ = new List<Vector3>();
-			for (int i = 0; i < groupTriangles.Length; i++)
-			{
-				if (groupTriangles[i] == groupIT)
-				{
-					//new idea: find all vertices with minX, maxX, etc; and use them directly, with no bounding box
-					if (vertices[triangles[i]].x == minX) {
-						//if it is not in the list yet, add
-						if (!allMinX.Contains(vertices[triangles[i]]))
-						{
-							allMinX.Add(vertices[triangles[i]]);
-						}
-					}
-					if (vertices[triangles[i]].x == maxX)
-					{
-						//if it is not in the list yet, add
-						if (!allMaxX.Contains(vertices[triangles[i]]))
-						{
-							allMaxX.Add(vertices[triangles[i]]);
-						}
-					}
-					if (vertices[triangles[i]].z == minZ)
-					{
-						//if it is not in the list yet, add
-						if (!allMinZ.Contains(vertices[triangles[i]]))
-						{
-							allMinZ.Add(vertices[triangles[i]]);
-						}
-					}
-					if (vertices[triangles[i]].z == maxZ)
-					{
-						//if it is not in the list yet, add
-						if (!allMaxZ.Contains(vertices[triangles[i]]))
-						{
-							allMaxZ.Add(vertices[triangles[i]]);
-						}
-					}
-				}
-			}
-
-			List<Vector3> fourVertices = new List<Vector3>();
-			//now we have the possible vertices. Lets decide which 4 to use
-			//if allMinX just have 1 vertice, just check his z value
-			if (fourVertices.Count < 4)
-			{
-				if (allMinX.Count == 1)
-				{
-					if (!fourVertices.Contains(allMinX[0]))
-					{
-						fourVertices.Add(allMinX[0]);
-					}
-				}
-				//else, it must already contain bottom and top
 				else
 				{
-					//find the highest and lowest z
-					Vector3 lZ = new Vector3(1000f, 0, 1000f);
-					Vector3 hZ = new Vector3(-1000f, 0, -1000f);
-					foreach(Vector3 cont in allMinX)
+					if (polygonX[trianglesObstacle[i]] > maxX)
 					{
-						if (cont.z < lZ.z)
-						{
-							lZ = cont;
-						}
-						if (cont.z > hZ.z)
-						{
-							hZ = cont;
-						}
+						maxX = polygonX[trianglesObstacle[i]];
 					}
-
-					if (!fourVertices.Contains(lZ))
+					if (polygonX[trianglesObstacle[i]] < minX)
 					{
-						fourVertices.Add(lZ);
+						minX = polygonX[trianglesObstacle[i]];
 					}
-					if (!fourVertices.Contains(hZ))
+					if (polygonZ[trianglesObstacle[i]] > maxZ)
 					{
-						fourVertices.Add(hZ);
+						maxZ = polygonZ[trianglesObstacle[i]];
+					}
+					if (polygonZ[trianglesObstacle[i]] < minZ)
+					{
+						minZ = polygonX[trianglesObstacle[i]];
 					}
 				}
-			}
-
-			//if allMaxX just have 1 vertice, just check his z value
-			if (fourVertices.Count < 4)
-			{
-				if (allMaxX.Count == 1)
-				{
-					if (!fourVertices.Contains(allMaxX[0]))
-					{
-						fourVertices.Add(allMaxX[0]);
-					}
-				}
-				//else, it must already contain bottom and top
-				else
-				{
-					//find the highest and lowest z
-					Vector3 lZ = new Vector3(1000f, 0, 1000f);
-					Vector3 hZ = new Vector3(-1000f, 0, -1000f);
-					foreach(Vector3 cont in allMaxX)
-					{
-						if (cont.z < lZ.z)
-						{
-							lZ = cont;
-						}
-						if (cont.z > hZ.z)
-						{
-							hZ = cont;
-						}
-					}
-					if (!fourVertices.Contains(lZ))
-					{
-						fourVertices.Add(lZ);
-					}
-					if (!fourVertices.Contains(hZ))
-					{
-						fourVertices.Add(hZ);
-					}
-				}
-			}
-
-			if (fourVertices.Count < 4)
-			{
-				//if allMinZ just have 1 vertice, just check his x value
-				if (allMinZ.Count == 1)
-				{
-					if (!fourVertices.Contains(allMinZ[0]))
-					{
-						fourVertices.Add(allMinZ[0]);
-					}
-				}
-				//else, it must already contain left and right
-				else
-				{
-					//find the highest and lowest z
-					Vector3 lX = new Vector3(1000f, 0, 1000f);
-					Vector3 hX = new Vector3(-1000f, 0, -1000f);
-					foreach(Vector3 cont in allMinZ)
-					{
-						if (cont.x < lX.x)
-						{
-							lX = cont;
-						}
-						if (cont.x > hX.x)
-						{
-							hX = cont;
-						}
-					}
-					if (!fourVertices.Contains(lX))
-					{
-						fourVertices.Add(lX);
-					}
-					if (!fourVertices.Contains(hX))
-					{
-						fourVertices.Add(hX);
-					}
-				}
-			}
-
-			if (fourVertices.Count < 4)
-			{
-				//if allMaxZ just have 1 vertice, just check his x value
-				if (allMaxZ.Count == 1)
-				{
-					if (!fourVertices.Contains(allMaxZ[0]))
-					{
-						fourVertices.Add(allMaxZ[0]);
-					}
-				}
-				//else, it must already contain left and right
-				else
-				{
-					//find the highest and lowest z
-					Vector3 lX = new Vector3(1000f, 0, 1000f);
-					Vector3 hX = new Vector3(-1000f, 0, -1000f);
-					foreach(Vector3 cont in allMaxZ)
-					{
-						if (cont.x < lX.x)
-						{
-							lX = cont;
-						}
-						if (cont.x > hX.x)
-						{
-							hX = cont;
-						}
-					}
-					if (!fourVertices.Contains(lX))
-					{
-						fourVertices.Add(lX);
-					}
-					if (!fourVertices.Contains(hX))
-					{
-						fourVertices.Add(hX);
-					}
-				}
-			}
-
-			//now, assign the values
-			foreach(Vector3 four in fourVertices)
-			{
-				newVertices[verticesIndex] = four + new Vector3(500, 0, 500);
-				verticesIndex++;
 			}
 		}
+
+		//lists for the vertices which belong the boundary
+		std::vector<float> allMinX_X;
+		std::vector<float> allMinX_Z;
+		std::vector<float> allMaxX_X;
+		std::vector<float> allMaxX_Z;
+		std::vector<float> allMinZ_X;
+		std::vector<float> allMinZ_Z;
+		std::vector<float> allMaxZ_X;
+		std::vector<float> allMaxZ_Z;
+		for (int i = 0; i < groupTriangles.size(); i++)
+		{
+			if (groupTriangles[i] == groupIT)
+			{
+				//new idea: find all vertices with minX, maxX, etc; and use them directly, with no bounding box
+				if (polygonX[trianglesObstacle[i]] == minX) {
+					//if it is not in the list yet, add
+					bool contains = false;
+					for (int m = 0; m < allMinX_X.size(); m++) {
+						if (allMinX_X[m] == polygonX[trianglesObstacle[i]] && allMinX_Z[m] == polygonZ[trianglesObstacle[i]]) {
+							contains = true;
+							break;
+						}
+					}
+					if (!contains)
+					{
+						allMinX_X.push_back(polygonX[trianglesObstacle[i]]);
+						allMinX_Z.push_back(polygonZ[trianglesObstacle[i]]);
+					}
+				}
+				if (polygonX[trianglesObstacle[i]] == maxX)
+				{
+					//if it is not in the list yet, add
+					bool contains = false;
+					for (int m = 0; m < allMaxX_X.size(); m++) {
+						if (allMaxX_X[m] == polygonX[trianglesObstacle[i]] && allMaxX_Z[m] == polygonZ[trianglesObstacle[i]]) {
+							contains = true;
+							break;
+						}
+					}
+					if (!contains)
+					{
+						allMaxX_X.push_back(polygonX[trianglesObstacle[i]]);
+						allMaxX_Z.push_back(polygonZ[trianglesObstacle[i]]);
+					}
+				}
+				if (polygonZ[trianglesObstacle[i]] == minZ)
+				{
+					bool contains = false;
+					for (int m = 0; m < allMinZ_X.size(); m++) {
+						if (allMinZ_X[m] == polygonX[trianglesObstacle[i]] && allMinZ_Z[m] == polygonZ[trianglesObstacle[i]]) {
+							contains = true;
+							break;
+						}
+					}
+					if (!contains)
+					{
+						allMinZ_X.push_back(polygonX[trianglesObstacle[i]]);
+						allMinZ_Z.push_back(polygonZ[trianglesObstacle[i]]);
+					}
+				}
+				if (polygonZ[trianglesObstacle[i]] == maxZ)
+				{
+					bool contains = false;
+					for (int m = 0; m < allMaxZ_X.size(); m++) {
+						if (allMaxZ_X[m] == polygonX[trianglesObstacle[i]] && allMaxZ_Z[m] == polygonZ[trianglesObstacle[i]]) {
+							contains = true;
+							break;
+						}
+					}
+					if (!contains)
+					{
+						allMaxZ_X.push_back(polygonX[trianglesObstacle[i]]);
+						allMaxZ_Z.push_back(polygonZ[trianglesObstacle[i]]);
+					}
+				}
+			}
+		}
+		/*
+		List<Vector3> fourVertices = new List<Vector3>();
+		//now we have the possible vertices. Lets decide which 4 to use
+		//if allMinX just have 1 vertice, just check his z value
+		if (fourVertices.Count < 4)
+		{
+			if (allMinX.Count == 1)
+			{
+				if (!fourVertices.Contains(allMinX[0]))
+				{
+					fourVertices.Add(allMinX[0]);
+				}
+			}
+			//else, it must already contain bottom and top
+			else
+			{
+				//find the highest and lowest z
+				Vector3 lZ = new Vector3(1000f, 0, 1000f);
+				Vector3 hZ = new Vector3(-1000f, 0, -1000f);
+				foreach(Vector3 cont in allMinX)
+				{
+					if (cont.z < lZ.z)
+					{
+						lZ = cont;
+					}
+					if (cont.z > hZ.z)
+					{
+						hZ = cont;
+					}
+				}
+
+				if (!fourVertices.Contains(lZ))
+				{
+					fourVertices.Add(lZ);
+				}
+				if (!fourVertices.Contains(hZ))
+				{
+					fourVertices.Add(hZ);
+				}
+			}
+		}
+
+		//if allMaxX just have 1 vertice, just check his z value
+		if (fourVertices.Count < 4)
+		{
+			if (allMaxX_X.size() == 1)
+			{
+				if (!fourVertices.Contains(allMaxX[0]))
+				{
+					fourVertices.Add(allMaxX[0]);
+				}
+			}
+			//else, it must already contain bottom and top
+			else
+			{
+				//find the highest and lowest z
+				Vector3 lZ = new Vector3(1000f, 0, 1000f);
+				Vector3 hZ = new Vector3(-1000f, 0, -1000f);
+				foreach(Vector3 cont in allMaxX)
+				{
+					if (cont.z < lZ.z)
+					{
+						lZ = cont;
+					}
+					if (cont.z > hZ.z)
+					{
+						hZ = cont;
+					}
+				}
+				if (!fourVertices.Contains(lZ))
+				{
+					fourVertices.Add(lZ);
+				}
+				if (!fourVertices.Contains(hZ))
+				{
+					fourVertices.Add(hZ);
+				}
+			}
+		}
+
+		if (fourVertices.Count < 4)
+		{
+			//if allMinZ just have 1 vertice, just check his x value
+			if (allMinZ.Count == 1)
+			{
+				if (!fourVertices.Contains(allMinZ[0]))
+				{
+					fourVertices.Add(allMinZ[0]);
+				}
+			}
+			//else, it must already contain left and right
+			else
+			{
+				//find the highest and lowest z
+				Vector3 lX = new Vector3(1000f, 0, 1000f);
+				Vector3 hX = new Vector3(-1000f, 0, -1000f);
+				foreach(Vector3 cont in allMinZ)
+				{
+					if (cont.x < lX.x)
+					{
+						lX = cont;
+					}
+					if (cont.x > hX.x)
+					{
+						hX = cont;
+					}
+				}
+				if (!fourVertices.Contains(lX))
+				{
+					fourVertices.Add(lX);
+				}
+				if (!fourVertices.Contains(hX))
+				{
+					fourVertices.Add(hX);
+				}
+			}
+		}
+
+		if (fourVertices.Count < 4)
+		{
+			//if allMaxZ just have 1 vertice, just check his x value
+			if (allMaxZ.Count == 1)
+			{
+				if (!fourVertices.Contains(allMaxZ[0]))
+				{
+					fourVertices.Add(allMaxZ[0]);
+				}
+			}
+			//else, it must already contain left and right
+			else
+			{
+				//find the highest and lowest z
+				Vector3 lX = new Vector3(1000f, 0, 1000f);
+				Vector3 hX = new Vector3(-1000f, 0, -1000f);
+				foreach(Vector3 cont in allMaxZ)
+				{
+					if (cont.x < lX.x)
+					{
+						lX = cont;
+					}
+					if (cont.x > hX.x)
+					{
+						hX = cont;
+					}
+				}
+				if (!fourVertices.Contains(lX))
+				{
+					fourVertices.Add(lX);
+				}
+				if (!fourVertices.Contains(hX))
+				{
+					fourVertices.Add(hX);
+				}
+			}
+		}
+
+		//now, assign the values
+		foreach(Vector3 four in fourVertices)
+		{
+			newVertices[verticesIndex] = four + new Vector3(500, 0, 500);
+			verticesIndex++;
+		}*/
 
 		groupIT++;
 	}
 
-	verticesObstacles = newVertices;
+	std::cout << "Finished to check group vertices!\n";
+
+	//verticesObstacles = newVertices;
 }
-*/
+
 //TEST TO READ THE 4X4.OBJ
 void Simulation::ReadOBJFile()
 {
@@ -1788,7 +1743,7 @@ void Simulation::ReadOBJFile()
 			{
 				std::vector<std::string> entries;
 				Split(line, ' ', entries);
-				if (entries[entries.size()-1] == "vertices")
+				if (entries[entries.size() - 1] == "vertices")
 				{
 					qntVertices = std::stoi(entries[entries.size() - 2]);
 				}

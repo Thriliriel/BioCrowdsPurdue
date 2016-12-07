@@ -142,9 +142,12 @@ void Agent::Interaction(Sign *sign, float distance, int index)
 void Agent::Caminhe(float tempo)
 {
 	std::cout << name << ": SpeedX - " << speedX << " -- SpeedZ - " << speedZ << "-- Tempo: " << tempo << "\n";
-	posX += speedX*tempo;
+	/*posX += speedX*tempo;
 	posY += speedY*tempo;
-	posZ += speedZ*tempo;
+	posZ += speedZ*tempo;*/
+	posX += speedX;
+	posY += speedY;
+	posZ += speedZ;
 	std::cout << name << ": PosX - " << posX << " -- PosZ - " << posZ << "-- Tempo: " << tempo << "\n";
 }
 

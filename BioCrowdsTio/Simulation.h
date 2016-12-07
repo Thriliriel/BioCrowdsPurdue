@@ -123,6 +123,7 @@ class Simulation
 		void SaveAgentsGoalFile(std::string agentName, std::string goalName);
 		void DrawObstacles();
 		void DrawObstacle(std::vector<float> verticesX, std::vector<float> verticesY, std::vector<float> verticesZ, std::vector<int> triangles);
+		void CheckGroupVertices();
 		void ReadOBJFile();
 		void GenerateLookingFor();
 		void ChangeLookingFor(Goal* changeLF);
