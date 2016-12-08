@@ -62,6 +62,7 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius) {
 
 		//check group vertices
 		CheckGroupVertices();
+		std::cout << verticesObstaclesX.size() << " -- " << verticesObstaclesZ.size() << "\n";
 
 		//start from the first one
 		LoadChainSimulation();
@@ -81,8 +82,8 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius) {
 		}
 
 		//draw the obstacles
-		//DrawObstacles();
-		ReadOBJFile();
+		DrawObstacles();
+		//ReadOBJFile();
 
 		//check group vertices
 		CheckGroupVertices();
@@ -265,9 +266,9 @@ void Simulation::DefaultValues() {
 	//radius for auxin collide
 	auxinRadius = 0.1;
 	//save config file?
-	saveConfigFile = true;
+	saveConfigFile = false;
 	//load config file?
-	loadConfigFile = false;
+	loadConfigFile = true;
 	//all simulation files directory
 	allSimulations = "Simulations/";
 	//config filename
@@ -371,6 +372,15 @@ void Simulation::EndSimulation() {
 			//reset scene
 			agents.clear();
 			signs.clear();
+
+			//reinstantiate the goals signs
+			//instantiate the goal's signs
+			for (int p = 0; p < goals.size(); p++) {
+				if (!goals[p].isLookingFor) {
+					DrawSign(goals[p].posX, goals[p].posY, goals[p].posZ, &goals[p], 1);
+				}
+			}
+
 			for (int g = 0; g < goals.size(); g++) {
 				goals[g].isTaken = false;
 			}
@@ -671,9 +681,10 @@ void Simulation::LoadConfigFile() {
 					if (true)
 					{
 						//check group vertices to find the corners
-						newPositionX = verticesObstaclesX[(int)(RandomFloat(0, verticesObstaclesX.size()) - 1)];
+						int ind = round(RandomFloat(0, verticesObstaclesX.size()-1));
+						newPositionX = verticesObstaclesX[ind];
 						//newPositionY = verticesObstaclesY[round(RandomFloat(0, verticesObstaclesY.size()) - 1)]; //y is zero
-						newPositionZ = verticesObstaclesZ[(int)(RandomFloat(0, verticesObstaclesZ.size()) - 1)];
+						newPositionZ = verticesObstaclesZ[ind];
 						bool newPositionOK = true;
 
 						//check every sign
@@ -687,9 +698,10 @@ void Simulation::LoadConfigFile() {
 						//while newPosition is inside the already used positions, we try again
 						while (!newPositionOK)
 						{
-							newPositionX = verticesObstaclesX[round(RandomFloat(0, verticesObstaclesX.size()) - 1)];
+							ind = round(RandomFloat(0, verticesObstaclesX.size()-1));
+							newPositionX = verticesObstaclesX[ind];
 							//newPositionY = verticesObstaclesY[round(RandomFloat(0, verticesObstaclesY.size()) - 1)]; //y is zero
-							newPositionZ = verticesObstaclesZ[round(RandomFloat(0, verticesObstaclesZ.size()) - 1)];
+							newPositionZ = verticesObstaclesZ[ind];
 
 							newPositionOK = true;
 
@@ -720,7 +732,7 @@ void Simulation::LoadConfigFile() {
 				}
 
 				//file sign goal
-				std::string signGoalName = "Goal" + (std::stoi(entries[1]) - 1);
+				std::string signGoalName = "Goal" + std::to_string((std::stoi(entries[1])));
 				//find its goal
 				for (int g = 0; g < goals.size(); g++) {
 					if (goals[g].name == signGoalName) {
@@ -2032,10 +2044,21 @@ bool Simulation::InsideObstacle(float pX, float pY, float pZ) {
 //@TODO: A* to avoid it
 void Simulation::UnlockAgent(Agent* agentToUnlock) {
 	std::cout << agentToUnlock->name << " trancou!\n";
+	float agentDisplacement = 10;
 	while (true) {
-		//generate a new random position
-		float x = RandomFloat(0, scenarioSizeX);
-		float z = RandomFloat(0, scenarioSizeZ);
+		//generate a new random position inside a radius
+		float minX = agentToUnlock->posX - agentDisplacement;
+		float maxX = agentToUnlock->posX + agentDisplacement;
+		float minZ = agentToUnlock->posZ - agentDisplacement;
+		float maxZ = agentToUnlock->posZ + agentDisplacement;
+
+		if (minX < 0) minX = 0;
+		if (minZ < 0) minZ = 0;
+		if (maxX > scenarioSizeX) maxX = scenarioSizeX;
+		if (maxZ > scenarioSizeZ) maxZ = scenarioSizeZ;
+
+		float x = RandomFloat(minX, maxX);
+		float z = RandomFloat(minZ, maxZ);
 
 		//see if there are agents in this radius. if not, new position
 		bool pCollider = false;
@@ -2058,7 +2081,7 @@ void Simulation::UnlockAgent(Agent* agentToUnlock) {
 			agentToUnlock->posY = 0;
 			agentToUnlock->posZ = z;
 
-			std::cout << agentToUnlock->name << " nova posicao: " << x << "--" << z << "\n";
+			std::cout << agentToUnlock->name << " nova posicao: " << x << " -- " << z << "\n";
 
 			break;
 		}
