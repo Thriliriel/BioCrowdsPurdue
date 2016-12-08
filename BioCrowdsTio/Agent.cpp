@@ -6,7 +6,7 @@ Agent::Agent()
 	valorDenominadorW = 0;
 	denominadorW = false;
 	idleTimer = 0;
-	maxIdleTimer = 30;
+	maxIdleTimer = 50;
 }
 
 //initialize with its new position
@@ -26,7 +26,7 @@ Agent::Agent(float newPosX, float newPosY, float newPosZ, std::string newName) {
 	speedZ = 0;
 	fieldOfView = 5;
 	idleTimer = 0;
-	maxIdleTimer = 30;
+	maxIdleTimer = 50;
 }
 
 Agent::~Agent()

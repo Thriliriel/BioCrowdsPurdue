@@ -43,6 +43,10 @@ class Simulation
 		clock_t startTime;
 		//simulation delta time
 		double simulationTime;
+		//xml for visualisation
+		std::string exitXml;
+		//"frame" count (Estevão said it needs to start at 24, for reasons...)
+		unsigned int frameCount;
 
 	//private attributes
 	private:
@@ -118,6 +122,7 @@ class Simulation
 		void DrawSign(float signPositionX, float signPositionY, float signPositionZ, Goal* signGoal, float signAppeal);
 		void DrawCells();
 		void PlaceAuxins();
+		void PlaceAuxinsAsGrid();
 		void SaveConfigFile();
 		void SaveExitFile();
 		void SaveAgentsGoalFile(std::string agentName, std::string goalName);

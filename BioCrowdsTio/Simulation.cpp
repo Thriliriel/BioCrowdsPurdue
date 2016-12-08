@@ -81,6 +81,9 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius) {
 			std::cout << "Could not open agents goal file: " + agentsGoalFilename + "!\n";
 		}
 
+		//place the initial info in the file
+		exitFile << exitXml;
+
 		//draw the obstacles
 		DrawObstacles();
 		//ReadOBJFile();
@@ -101,7 +104,8 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius) {
 		//std::cout << "Qnt Obstacles: " << obstacles.size() << "\n";
 		//std::cout << "Vertice: " << obstacles[0].verticesX[0] << "\n";
 		DrawCells();
-		PlaceAuxins();
+		//PlaceAuxins();
+		PlaceAuxinsAsGrid();
 		std::cout << "Qnt Cells: " << cells.size() << "\n";
 
 		//instantiante some goals
@@ -223,7 +227,6 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius) {
 	/*for (int i = 0; i < agents[0].go.size(); i++) {
 		std::cout << agents[0].go[i]->name << ": PosX - " << agents[0].go[i]->posX << " -- PosZ - " << agents[0].go[i]->posZ << " -- Intention: " << agents[0].intentions[i] << "\n";
 	}*/
-	system("PAUSE");
 
 	/*for (int p = 0; p < signs.size(); p++) {
 		std::cout << signs[p].GetGoal()->name << "\n";
@@ -236,6 +239,8 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius) {
 
 		Simulation::SaveConfigFile();
 	}
+
+	//system("PAUSE");
 
 	std::cout << "STARTING TO RUN!!\n";
 
@@ -282,7 +287,8 @@ void Simulation::DefaultValues() {
 	//goals filename
 	goalsFilename = allSimulations + "goals.dat";
 	//exit filename
-	exitFilename = allSimulations + "sign_0/Exit.csv";
+	//exitFilename = allSimulations + "sign_0/Exit.csv";
+	exitFilename = allSimulations + "sign_0/Exit.xml";
 	//exit agents/goal filename
 	agentsGoalFilename = allSimulations + "sign_0/AgentsGoal.csv";
 	//auxins density
@@ -299,6 +305,16 @@ void Simulation::DefaultValues() {
 	fps = 24;
 	//how much is the obstacle far away from the world origin
 	obstacleDisplacement = 500;
+	//start the frame count at 24
+	frameCount = 24;
+	//start the exit xml with the default values
+	exitXml = "<?xml version='1.0' ?>\n<SIMULATION Path='.'>\n";
+	exitXml += "<AGENTS Quantity='10'>\n<AGENT id='0' />\n<AGENT id='1' />\n<AGENT id='2' />\n<AGENT id='3' />\n<AGENT id='4' />\n<AGENT id='5' />\n<AGENT id='6' />\n<AGENT id='7' />\n<AGENT id='8' />\n<AGENT id='9' />\n</AGENTS>\n";
+	exitXml += "<CONTEXTS></CONTEXTS>\n";
+	exitXml += "<EVENTS>\n<EVENT Name='Teste1' Color='Red' Tag='t1'/>\n<EVENT Name='Teste2' Color='Blue' Tag='t2'/>\n<EVENT Name='Teste3' Color='FFFFAA11' Tag='t3'/>\n<EVENT Name='Teste4' Color='Yellow' Tag='t4'/>\n</EVENTS>\n";
+	exitXml += "<AMBIENT>\n<MODEL>\n<TRANSFORM>\n<TRANSLATE>0.0 0.0 0.0</TRANSLATE>\n<TRANSLATE>0.0 0.0 0.0 0.0</TRANSLATE>\n<TRANSLATE>1 1 1</TRANSLATE>\n</TRANSFORM>\n<FILE>visao/chaoModeloCCVC3.osg</FILE>\n</MODEL>\n</AMBIENT>\n";
+	exitXml += "<SKYBOX>\n<POSITIVE_X>skybox/skybox_l.jpg</POSITIVE_X>\n<NEGATIVE_X>skybox/skybox_r.jpg</NEGATIVE_X>\n<POSITIVE_Y>skybox/skybox_f.jpg</POSITIVE_Y>\n<NEGATIVE_Y>skybox/skybox_b.jpg</NEGATIVE_Y>\n<POSITIVE_Z>skybox/skybox_d.jpg</POSITIVE_Z>\n<NEGATIVE_Z>skybox/skybox_u.jpg</NEGATIVE_Z>\n</SKYBOX>\n";
+	exitXml += "<FRAMES Quantity='10000' Scale='5'>\n";
 }
 
 //start the simulation and control the update
@@ -329,10 +345,20 @@ void Simulation::EndSimulation() {
 	if (agents.size() == 0) {
 		std::cout << "Finishing Simulation " + std::to_string(simulationIndex) << "\n";
 
+		//end the exit xml
+		exitXml += "</FRAMES>\n</SIMULATION>";
+		exitFile << exitXml;
+
 		//close exit file
 		exitFile.close();
 		//close exit agents/goal file
 		agentsGoalFile.close();
+
+		//save finish time
+		std::ofstream timeFile;
+		timeFile.open("FinishTime" + std::to_string(simulationIndex) + ".txt");
+		timeFile << std::to_string((((float)clock() - startTime) / CLOCKS_PER_SEC) - lastFrameCount);
+		timeFile.close();
 
 		//update simulation index
 		simulationIndex++;
@@ -453,8 +479,9 @@ void Simulation::LoadChainSimulation() {
 	exitFilename = "";
 	for (int i = 0; i < allFiles.size(); i++)
 	{
-		//just csv and dat files
-		if (allFiles[i].substr(allFiles[i].find_last_of(".") + 1) == "csv" || allFiles[i].substr(allFiles[i].find_last_of(".") + 1) == "dat") {
+		//just csv, xml and dat files
+		if (allFiles[i].substr(allFiles[i].find_last_of(".") + 1) == "csv" || allFiles[i].substr(allFiles[i].find_last_of(".") + 1) == "dat"
+			|| allFiles[i].substr(allFiles[i].find_last_of(".") + 1) == "xml") {
 			if (allFiles[i].find(schNam[schNam.size() - 1]) != std::string::npos)
 			{
 				scheduleFilename = allFiles[i];
@@ -493,6 +520,24 @@ void Simulation::LoadChainSimulation() {
 	}
 	exitFile.open(exitFilename);
 	agentsGoalFile.open(agentsGoalFilename);
+
+	//start the exit xml with the default values
+	exitXml = "<?xml version='1.0' ?>\n<SIMULATION Path='.'>\n";
+	exitXml += "<AGENTS Quantity='10'>\n<AGENT id='0' />\n<AGENT id='1' />\n<AGENT id='2' />\n<AGENT id='3' />\n<AGENT id='4' />\n<AGENT id='5' />\n<AGENT id='6' />\n<AGENT id='7' />\n<AGENT id='8' />\n<AGENT id='9' />\n</AGENTS>\n";
+	exitXml += "<CONTEXTS></CONTEXTS>\n";
+	exitXml += "<EVENTS>\n<EVENT Name='Teste1' Color='Red' Tag='t1'/>\n<EVENT Name='Teste2' Color='Blue' Tag='t2'/>\n<EVENT Name='Teste3' Color='FFFFAA11' Tag='t3'/>\n<EVENT Name='Teste4' Color='Yellow' Tag='t4'/>\n</EVENTS>\n";
+	exitXml += "<AMBIENT>\n<MODEL>\n<TRANSFORM>\n<TRANSLATE>0.0 0.0 0.0</TRANSLATE>\n<TRANSLATE>0.0 0.0 0.0 0.0</TRANSLATE>\n<TRANSLATE>1 1 1</TRANSLATE>\n</TRANSFORM>\n<FILE>visao/chaoModeloCCVC3.osg</FILE>\n</MODEL>\n</AMBIENT>\n";
+	exitXml += "<SKYBOX>\n<POSITIVE_X>skybox/skybox_l.jpg</POSITIVE_X>\n<NEGATIVE_X>skybox/skybox_r.jpg</NEGATIVE_X>\n<POSITIVE_Y>skybox/skybox_f.jpg</POSITIVE_Y>\n<NEGATIVE_Y>skybox/skybox_b.jpg</NEGATIVE_Y>\n<POSITIVE_Z>skybox/skybox_d.jpg</POSITIVE_Z>\n<NEGATIVE_Z>skybox/skybox_u.jpg</NEGATIVE_Z>\n</SKYBOX>\n";
+	exitXml += "<FRAMES Quantity='10000' Scale='5'>\n";
+
+	//place the initial info in the file
+	exitFile << exitXml;
+
+	//save start time
+	std::ofstream timeFile;
+	timeFile.open("StartTime" + std::to_string(simulationIndex) + ".txt");
+	timeFile << std::to_string((((float)clock() - startTime) / CLOCKS_PER_SEC) - lastFrameCount);
+	timeFile.close();
 
 	std::cout << "Loading Files\n";
 
@@ -755,8 +800,8 @@ void Simulation::LoadConfigFile() {
 //load cells and auxins and obstacles and goals (static stuff)
 void Simulation::LoadCellsAuxins() {
 	//read the obstacle file
-	//ReadOBJFile();
-	DrawObstacles();
+	ReadOBJFile();
+	//DrawObstacles();
 
 	//precalc values to check obstacles
 	PreCalcValues();
@@ -770,7 +815,7 @@ void Simulation::LoadCellsAuxins() {
 
 	int lineCount = 1;
 	// While there's lines left in the text file, do this:
-	do
+	/*do
 	{
 		std::getline(theReader, line);
 
@@ -855,7 +900,9 @@ void Simulation::LoadCellsAuxins() {
 		lineCount++;
 	} while (line != "" && !line.empty());
 	// Done reading, close the reader and return true to broadcast success
-	theReader.close();
+	theReader.close();*/
+	DrawCells();
+	PlaceAuxinsAsGrid();
 
 	std::cout << "Qnt Cells: " << cells.size() << "\n";
 
@@ -1045,6 +1092,54 @@ void Simulation::PlaceAuxins() {
 	}*/
 }
 
+//place auxins as a grid
+void Simulation::PlaceAuxinsAsGrid() {
+	//lets set the qntAuxins for each cell according the density estimation
+	float densityToQnt = PORC_QTD_Marcacoes;
+
+	densityToQnt *= (cellRadius * 2) / (2.0f * auxinRadius);
+	densityToQnt *= (cellRadius * 2) / (2.0f * auxinRadius);
+
+	qntAuxins = (int)round(densityToQnt);
+
+	//with the qnt auxins, we found out how many markers we need on each line and column
+	int qntAuxinsPerLineColumn = floor(sqrtf(qntAuxins));
+
+	//now, find the space variation between each marker
+	float spaceVariation = (cellRadius * 2) / qntAuxinsPerLineColumn;
+
+	//if spacevariation is lower than auxinRadius, use auxinRadius
+	if (spaceVariation < auxinRadius) {
+		spaceVariation = auxinRadius;
+	}
+
+	//std::cout << qntAuxinsPerLineColumn << " -- " << qntAuxins << " -- " << spaceVariation << "\n";
+	//for each cell, we generate his auxins
+	for (int c = 0; c < cells.size(); c++)
+	{
+		//for each line, variating by spacevariation
+		for (float i = cells[c].posX - cellRadius; i < cells[c].posX + cellRadius; i = i + spaceVariation) {
+			//for each column, variating by spacevariation
+			for (float j = cells[c].posZ - cellRadius; j < cells[c].posZ + cellRadius; j = j + spaceVariation) {
+				//if it is not inside an obstacle
+				if (!InsideObstacle(i, 0, j))
+				{
+					Marker newMarker(i, 0, j);
+					newMarker.name = "marker" + std::to_string(i) + "-" + std::to_string(j);
+					cells[c].AddAuxin(newMarker);
+				}
+			}
+		}
+
+		std::cout << cells[c].name << " done adding markers! Qnt markers: " << cells[c].GetAuxins()->size() << "\n";
+	}
+
+	/*for (int i = 0; i < cells.size(); i++) {
+	//std::cout << cells[i].GetAuxins()->size() << "\n";
+	std::cout << cells[i].GetAuxins()->at(0).name << "\n";
+	}*/
+}
+
 //save a csv config file
 //files saved: Config.csv, Obstacles.csv, goals.dat
 void Simulation::SaveConfigFile() {
@@ -1136,8 +1231,10 @@ void Simulation::SaveConfigFile() {
 		//for each goal
 		for (int i = 0; i < goals.size(); i++)
 		{
-			//new line for the goal name and position
-			fileGoals << goals[i].name + " " + std::to_string(goals[i].posX) + " " + std::to_string(goals[i].posZ) + "\n";
+			if (!goals[i].isLookingFor) {
+				//new line for the goal name and position
+				fileGoals << goals[i].name + " " + std::to_string(goals[i].posX) + " " + std::to_string(goals[i].posZ) + "\n";
+			}
 		}
 	}
 
@@ -1334,15 +1431,23 @@ void Simulation::SaveExitFile() {
 	//get agents info
 	if (agents.size() > 0)
 	{
+		exitFile << "<FRAME FrameAtual='" << frameCount << "' qtdPos='10'>";
+
 		//each line: frame, agents name, positionx, positiony, positionz, goal object name, cell name
 		//separated with ;
 		//for each agent
 		for (int i = 0; i < agents.size(); i++)
 		{
-			exitFile << std::to_string((((float)clock() - startTime) / CLOCKS_PER_SEC) - lastFrameCount) + ";" + agents[i].name + ";"
+			/*exitFile << std::to_string((((float)clock() - startTime) / CLOCKS_PER_SEC) - lastFrameCount) + ";" + agents[i].name + ";"
 				+ std::to_string(agents[i].posX) + ";" + std::to_string(agents[i].posY) + ";" + std::to_string(agents[i].posZ) + ";" +
-				agents[i].go[0]->name + ";" + agents[i].GetCell()->name + "\n";
+				agents[i].go[0]->name + ";" + agents[i].GetCell()->name + "\n";*/
+
+			//invert Y and Z, since the visualisation works with X and Y
+			exitFile << "<AGENT id='" + std::to_string(i) + "'>\n<POSITION>"+ std::to_string(agents[i].posX) +" "+ std::to_string(agents[i].posZ) +" "+ std::to_string(agents[i].posY) +"</POSITION>\n</AGENT>\n";
 		}
+
+		exitFile << "</FRAME>";
+		frameCount++;
 	}
 }
 
@@ -2043,7 +2148,7 @@ bool Simulation::InsideObstacle(float pX, float pY, float pZ) {
 //unlock agent if he stops beacuse an obstacle
 //@TODO: A* to avoid it
 void Simulation::UnlockAgent(Agent* agentToUnlock) {
-	std::cout << agentToUnlock->name << " trancou!\n";
+	std::cout << agentToUnlock->name << " trancou na posicao " << agentToUnlock->posX << " -- " << agentToUnlock->posZ << "!\n";
 	float agentDisplacement = 10;
 	while (true) {
 		//generate a new random position inside a radius
