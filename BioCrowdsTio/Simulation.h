@@ -91,6 +91,8 @@ class Simulation
 		std::vector<float> multiple;
 		//how much is the obstacle far away from the world origin
 		float obstacleDisplacement;
+		//do we plot the scene?
+		bool plot;
 
 		/*Signs Part*/
 		//signs array
@@ -106,7 +108,7 @@ class Simulation
 	//public methods
 	public:
 		Simulation();
-		Simulation(float mapSizeX, float mapSizeZ, float newCellRadius);
+		Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int argcp, char **argv);
 		~Simulation();
 		void Update(double elapsed);
 

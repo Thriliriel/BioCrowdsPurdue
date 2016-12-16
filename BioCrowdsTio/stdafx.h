@@ -22,6 +22,7 @@
 #include "Marker.h"
 #include "Cell.h"
 #include "Agent.h"
+#include "Plot.h"
 #include "Simulation.h"
 
 // TODO: reference additional headers your program requires here

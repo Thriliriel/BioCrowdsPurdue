@@ -12,10 +12,10 @@ Simulation::~Simulation()
 	agentsGoalFile.close();
 }
 
-Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius) {
+Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int argcp, char **argv) {
 	//start with default values
 	DefaultValues();
-
+	
 	std::cout << "STARTING TO DEPLOY!!\n";
 
 	scenarioSizeX = mapSizeX;
@@ -240,7 +240,12 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius) {
 		Simulation::SaveConfigFile();
 	}
 
-	//system("PAUSE");
+	//if plot..PLOT!
+	//if (plot) {
+		Plot plotObject("BioCrowds Plot", 480, 480, argcp, argv);
+	//}
+
+	system("PAUSE");
 
 	std::cout << "STARTING TO RUN!!\n";
 
@@ -273,7 +278,7 @@ void Simulation::DefaultValues() {
 	//save config file?
 	saveConfigFile = false;
 	//load config file?
-	loadConfigFile = true;
+	loadConfigFile = false;
 	//all simulation files directory
 	allSimulations = "Simulations/";
 	//config filename
@@ -307,6 +312,8 @@ void Simulation::DefaultValues() {
 	obstacleDisplacement = 500;
 	//start the frame count at 24
 	frameCount = 24;
+	//do we plot the scene?
+	plot = false;
 	//start the exit xml with the default values
 	exitXml = "<?xml version='1.0' ?>\n<SIMULATION Path='.'>\n";
 	exitXml += "<AGENTS Quantity='10'>\n<AGENT id='0' />\n<AGENT id='1' />\n<AGENT id='2' />\n<AGENT id='3' />\n<AGENT id='4' />\n<AGENT id='5' />\n<AGENT id='6' />\n<AGENT id='7' />\n<AGENT id='8' />\n<AGENT id='9' />\n</AGENTS>\n";
@@ -2070,21 +2077,6 @@ bool Simulation::Contains(std::vector<float> arrayToSearch, std::vector<float> a
 }
 
 //verify if a point is inside the obstacles
-//Leandro approach (not used)
-//this approach need the 4 vertices of the obstacle. Thus, just works with quadrilaterals. Besides, would need to separate the Tharindu "blocks" (just like i did on Unity).
-/*bool Simulation::InsideObstacle(float pX, float pY, float pZ)
-{
-	int i = (pZ - C1.y)*(C2.x - C1.x) - (pX - C1.x)*(C2.y - C1.y);
-	int j = (pZ - C2.y)*(C3.x - C2.x) - (pX - C2.x)*(C3.y - C2.y);
-	int k = (pZ - C3.y)*(C4.x - C3.x) - (pX - C3.x)*(C4.y - C3.y);
-	int l = (pZ - C4.y)*(C1.x - C4.x) - (pX - C4.x)*(C1.y - C4.y);
-	printf("%d %d %d %d", i, j, k, l);
-	if ((i >= 0 && j >= 0 && k >= 0 && l >= 0) || (i <= 0 && j <= 0 && k <= 0 && l <= 0))
-		return true;
-	return false;
-}*/
-
-//verify if a point is inside the obstacles
 //Soraia approach (from: http://alienryderflex.com/polygon/)
 //works for any polygon, therefore, there is no need to separate the Tharindu "blocks".
 //  Globals which should be set before calling these functions:
@@ -2145,10 +2137,10 @@ bool Simulation::InsideObstacle(float pX, float pY, float pZ) {
 	return oddNodes;
 }
 
-//unlock agent if he stops beacuse an obstacle
+//unlock agent if he stops because an obstacle
 //@TODO: A* to avoid it
 void Simulation::UnlockAgent(Agent* agentToUnlock) {
-	std::cout << agentToUnlock->name << " trancou na posicao " << agentToUnlock->posX << " -- " << agentToUnlock->posZ << "!\n";
+	std::cout << agentToUnlock->name << " has locked at position " << agentToUnlock->posX << " -- " << agentToUnlock->posZ << "!\n";
 	float agentDisplacement = 10;
 	while (true) {
 		//generate a new random position inside a radius
@@ -2186,7 +2178,7 @@ void Simulation::UnlockAgent(Agent* agentToUnlock) {
 			agentToUnlock->posY = 0;
 			agentToUnlock->posZ = z;
 
-			std::cout << agentToUnlock->name << " nova posicao: " << x << " -- " << z << "\n";
+			std::cout << agentToUnlock->name << " new position: " << x << " -- " << z << "\n";
 
 			break;
 		}
