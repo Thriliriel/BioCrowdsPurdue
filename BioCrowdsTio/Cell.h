@@ -10,6 +10,10 @@ class Cell
 		 float posZ;
 		 //name
 		 std::string name;
+		 //can i pass this cell?
+		 //1 = can pass
+		 //9 = cannot pass
+		 int canPass;
 
 	//public methods
 	public:

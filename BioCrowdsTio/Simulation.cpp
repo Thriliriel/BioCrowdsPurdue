@@ -82,11 +82,11 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 		}
 
 		//place the initial info in the file
-		exitFile << exitXml;
+		//exitFile << exitXml;
 
 		//draw the obstacles
-		DrawObstacles();
-		//ReadOBJFile();
+		//DrawObstacles();
+		ReadOBJFile();
 
 		//check group vertices
 		CheckGroupVertices();
@@ -94,13 +94,6 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 
 		//precalc values to check obstacles
 		PreCalcValues();
-		//testing...
-		/*if (InsideObstacle(10.0f, 0.0f, 10.001f)) {
-			std::cout << "Inside!!\n";
-		}
-		else {
-			std::cout << "Outside!!\n";
-		}*/
 		//std::cout << "Qnt Obstacles: " << obstacles.size() << "\n";
 		//std::cout << "Vertice: " << obstacles[0].verticesX[0] << "\n";
 		DrawCells();
@@ -113,6 +106,10 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 		DrawGoal("Theater", 27, 0, 17, false);
 		DrawGoal("Stadium", 5, 0, 3, false);
 		DrawGoal("AppleStore", 25, 0, 5, false);
+		/*DrawGoal("Restaurant", 12.2, 0, 93.6, false);
+		DrawGoal("Theater", 70.6, 0, 76.5, false);
+		DrawGoal("Stadium", 45.7, 0, 36.1, false);
+		DrawGoal("AppleStore", 92, 0, 39.5, false);*/
 
 		//generate all looking for states
 		GenerateLookingFor();
@@ -232,6 +229,114 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 		std::cout << signs[p].GetGoal()->name << "\n";
 	}*/
 
+	//create the graph nodes
+	for (int i = 0; i < scenarioSizeX; i++) {
+		for (int j = 0; j < scenarioSizeZ; j++) {
+			int weight = 1;
+			if (InsideObstacle(i + 0.5f, 0, j + 0.5f)) {
+				weight = 9;
+			}
+			graphNodes.push_back(weight);
+		}
+	}
+
+	/*for (int i = 0; i < scenarioSizeX; i++) {
+		for (int j = 0; j < scenarioSizeZ; j++) {
+			//std::cout << graphNodes[(j*scenarioSizeX) + i] << "\t";
+			std::cout << i << "-" << j << "--" << ((i*scenarioSizeZ) + j) << ": " << graphNodes[(i*scenarioSizeZ) + j] << "\t";
+		}
+		std::cout << "\n";
+	}
+	std::cout << graphNodes.size() << "\n";*/
+
+	/////////////////////////////////////////
+	//A* SEARCH
+	AStarSearch<AStarSearchNode> astarsearch;
+
+	unsigned int SearchCount = 0;
+
+	const unsigned int NumSearches = 1;
+
+	while (SearchCount < NumSearches)
+	{
+		// Create a start state
+		AStarSearchNode nodeStart;
+		nodeStart.x = agents[0].posX;
+		nodeStart.y = agents[0].posZ;
+		nodeStart.maxSizeX = scenarioSizeX;
+		nodeStart.maxSizeZ = scenarioSizeZ;
+		nodeStart.graphNodes = &graphNodes;
+
+		// Define the goal state
+		AStarSearchNode nodeEnd;
+		nodeEnd.x = agents[0].goalX;
+		nodeEnd.y = agents[0].goalZ;
+		nodeEnd.maxSizeX = scenarioSizeX;
+		nodeEnd.maxSizeZ = scenarioSizeZ;
+		nodeEnd.graphNodes = &graphNodes;
+		std::cout << nodeStart.x << " -- " << nodeStart.y << "\n";
+		std::cout << nodeEnd.x << " -- " << nodeEnd.y << "\n";
+		std::cout << agents[0].go[0]->name << "\n";
+		if (InsideObstacle(nodeEnd.x, 0, nodeEnd.y)) {
+			std::cout << "RAAAA\n";
+		}
+		// Set Start and goal states
+		astarsearch.SetStartAndGoalStates(nodeStart, nodeEnd);
+		std::system("PAUSE");
+		unsigned int SearchState;
+		unsigned int SearchSteps = 0;
+
+		do
+		{
+			SearchState = astarsearch.SearchStep();
+
+			SearchSteps++;
+		} while (SearchState == AStarSearch<AStarSearchNode>::SEARCH_STATE_SEARCHING);
+
+		if (SearchState == AStarSearch<AStarSearchNode>::SEARCH_STATE_SUCCEEDED)
+		{
+			cout << "Search found goal state\n";
+
+			AStarSearchNode *node = astarsearch.GetSolutionStart();
+
+			int steps = 0;
+
+			node->PrintNodeInfo();
+			for (;; )
+			{
+				node = astarsearch.GetSolutionNext();
+
+				if (!node)
+				{
+					break;
+				}
+
+				node->PrintNodeInfo();
+				steps++;
+
+			};
+
+			cout << "Solution steps " << steps << endl;
+
+			// Once you're done with the solution you can free the nodes up
+			astarsearch.FreeSolutionNodes();
+		}
+		else if (SearchState == AStarSearch<AStarSearchNode>::SEARCH_STATE_FAILED)
+		{
+			cout << "Search terminated. Did not find goal state\n";
+		}
+
+		// Display the number of loops the search went through
+		cout << "SearchSteps : " << SearchSteps << "\n";
+
+		SearchCount++;
+
+		astarsearch.EnsureMemoryFreed();
+	}
+
+	//END A* SEARCH
+	////////////////////////////////////////
+
 	//all ready to go. If saveConfigFile is checked, save this config in a csv file
 	if (saveConfigFile)
 	{
@@ -241,11 +346,11 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 	}
 
 	//if plot..PLOT!
-	//if (plot) {
+	if (plot) {
 		Plot plotObject("BioCrowds Plot", 480, 480, argcp, argv);
-	//}
+	}
 
-	system("PAUSE");
+	std::system("PAUSE");
 
 	std::cout << "STARTING TO RUN!!\n";
 
@@ -293,7 +398,7 @@ void Simulation::DefaultValues() {
 	goalsFilename = allSimulations + "goals.dat";
 	//exit filename
 	//exitFilename = allSimulations + "sign_0/Exit.csv";
-	exitFilename = allSimulations + "sign_0/Exit.xml";
+	exitFilename = allSimulations + "sign_0/Exit.csv";
 	//exit agents/goal filename
 	agentsGoalFilename = allSimulations + "sign_0/AgentsGoal.csv";
 	//auxins density
@@ -310,18 +415,20 @@ void Simulation::DefaultValues() {
 	fps = 24;
 	//how much is the obstacle far away from the world origin
 	obstacleDisplacement = 500;
+	//what is the obstacle scale
+	obstacleScale = 0.1;
 	//start the frame count at 24
-	frameCount = 24;
+	//frameCount = 24;
 	//do we plot the scene?
 	plot = false;
 	//start the exit xml with the default values
-	exitXml = "<?xml version='1.0' ?>\n<SIMULATION Path='.'>\n";
+	/*exitXml = "<?xml version='1.0' ?>\n<SIMULATION Path='.'>\n";
 	exitXml += "<AGENTS Quantity='10'>\n<AGENT id='0' />\n<AGENT id='1' />\n<AGENT id='2' />\n<AGENT id='3' />\n<AGENT id='4' />\n<AGENT id='5' />\n<AGENT id='6' />\n<AGENT id='7' />\n<AGENT id='8' />\n<AGENT id='9' />\n</AGENTS>\n";
 	exitXml += "<CONTEXTS></CONTEXTS>\n";
 	exitXml += "<EVENTS>\n<EVENT Name='Teste1' Color='Red' Tag='t1'/>\n<EVENT Name='Teste2' Color='Blue' Tag='t2'/>\n<EVENT Name='Teste3' Color='FFFFAA11' Tag='t3'/>\n<EVENT Name='Teste4' Color='Yellow' Tag='t4'/>\n</EVENTS>\n";
 	exitXml += "<AMBIENT>\n<MODEL>\n<TRANSFORM>\n<TRANSLATE>0.0 0.0 0.0</TRANSLATE>\n<TRANSLATE>0.0 0.0 0.0 0.0</TRANSLATE>\n<TRANSLATE>1 1 1</TRANSLATE>\n</TRANSFORM>\n<FILE>visao/chaoModeloCCVC3.osg</FILE>\n</MODEL>\n</AMBIENT>\n";
 	exitXml += "<SKYBOX>\n<POSITIVE_X>skybox/skybox_l.jpg</POSITIVE_X>\n<NEGATIVE_X>skybox/skybox_r.jpg</NEGATIVE_X>\n<POSITIVE_Y>skybox/skybox_f.jpg</POSITIVE_Y>\n<NEGATIVE_Y>skybox/skybox_b.jpg</NEGATIVE_Y>\n<POSITIVE_Z>skybox/skybox_d.jpg</POSITIVE_Z>\n<NEGATIVE_Z>skybox/skybox_u.jpg</NEGATIVE_Z>\n</SKYBOX>\n";
-	exitXml += "<FRAMES Quantity='10000' Scale='5'>\n";
+	exitXml += "<FRAMES Quantity='10000' Scale='5'>\n";*/
 }
 
 //start the simulation and control the update
@@ -331,6 +438,7 @@ void Simulation::StartSimulation() {
 
 	//each time step, call again
 	while (true) {
+		//std::cout << (((float)clock() - startTime) / CLOCKS_PER_SEC) - lastFrameCount;
 		//update simulation timer
 		simulationTime += (((double)clock()) / CLOCKS_PER_SEC) - simulationTime;
 		//std::cout << fpsTime << " -- " << simulationTime << "\n";
@@ -353,8 +461,8 @@ void Simulation::EndSimulation() {
 		std::cout << "Finishing Simulation " + std::to_string(simulationIndex) << "\n";
 
 		//end the exit xml
-		exitXml += "</FRAMES>\n</SIMULATION>";
-		exitFile << exitXml;
+		//exitXml += "</FRAMES>\n</SIMULATION>";
+		//exitFile << exitXml;
 
 		//close exit file
 		exitFile.close();
@@ -529,7 +637,7 @@ void Simulation::LoadChainSimulation() {
 	agentsGoalFile.open(agentsGoalFilename);
 
 	//start the exit xml with the default values
-	exitXml = "<?xml version='1.0' ?>\n<SIMULATION Path='.'>\n";
+	/*exitXml = "<?xml version='1.0' ?>\n<SIMULATION Path='.'>\n";
 	exitXml += "<AGENTS Quantity='10'>\n<AGENT id='0' />\n<AGENT id='1' />\n<AGENT id='2' />\n<AGENT id='3' />\n<AGENT id='4' />\n<AGENT id='5' />\n<AGENT id='6' />\n<AGENT id='7' />\n<AGENT id='8' />\n<AGENT id='9' />\n</AGENTS>\n";
 	exitXml += "<CONTEXTS></CONTEXTS>\n";
 	exitXml += "<EVENTS>\n<EVENT Name='Teste1' Color='Red' Tag='t1'/>\n<EVENT Name='Teste2' Color='Blue' Tag='t2'/>\n<EVENT Name='Teste3' Color='FFFFAA11' Tag='t3'/>\n<EVENT Name='Teste4' Color='Yellow' Tag='t4'/>\n</EVENTS>\n";
@@ -538,7 +646,7 @@ void Simulation::LoadChainSimulation() {
 	exitXml += "<FRAMES Quantity='10000' Scale='5'>\n";
 
 	//place the initial info in the file
-	exitFile << exitXml;
+	exitFile << exitXml;*/
 
 	//save start time
 	std::ofstream timeFile;
@@ -1006,6 +1114,8 @@ void Simulation::DrawCells()
 			//if did collide it all, means we have found at least 1 obstacle in each case. So, the cell is covered by an obstacle
 			//otherwise, we go on
 			if (!collideRight || !collideLeft || !collideTop || !collideDown)
+			//UPDATE: WE ALWAYS CREATE THE CELL, SO WE CAN USE IT FOR A*
+			//if (true)
 			{
 				//new cell
 				Cell newCell(newPositionX + i, newPositionY, newPositionZ + j, "cell" + std::to_string(i) + "-" + std::to_string(j));
@@ -1267,7 +1377,7 @@ void Simulation::Update(double elapsed) {
 			}
 		}*/
 		
-		//REMEMBER WHEN DO THIS: WHEN THE AGENT "DIES", NEED TO CLEAR THEIR AUXINS!!!
+		//reset auxins
 		for (int i = 0; i < agents.size(); i++) {
 			std::vector<Marker*> axAge = agents[i].GetAuxins();
 			for (int j = 0; j < axAge.size(); j++)
@@ -1438,23 +1548,23 @@ void Simulation::SaveExitFile() {
 	//get agents info
 	if (agents.size() > 0)
 	{
-		exitFile << "<FRAME FrameAtual='" << frameCount << "' qtdPos='10'>";
-
+		//exitFile << "<FRAME FrameAtual='" << frameCount << "' qtdPos='10'>";
+		
 		//each line: frame, agents name, positionx, positiony, positionz, goal object name, cell name
 		//separated with ;
 		//for each agent
 		for (int i = 0; i < agents.size(); i++)
 		{
-			/*exitFile << std::to_string((((float)clock() - startTime) / CLOCKS_PER_SEC) - lastFrameCount) + ";" + agents[i].name + ";"
+			exitFile << std::to_string((((float)clock() - startTime) / CLOCKS_PER_SEC) - lastFrameCount) + ";" + agents[i].name + ";"
 				+ std::to_string(agents[i].posX) + ";" + std::to_string(agents[i].posY) + ";" + std::to_string(agents[i].posZ) + ";" +
-				agents[i].go[0]->name + ";" + agents[i].GetCell()->name + "\n";*/
+				agents[i].go[0]->name + ";" + agents[i].GetCell()->name + "\n";
 
 			//invert Y and Z, since the visualisation works with X and Y
-			exitFile << "<AGENT id='" + std::to_string(i) + "'>\n<POSITION>"+ std::to_string(agents[i].posX) +" "+ std::to_string(agents[i].posZ) +" "+ std::to_string(agents[i].posY) +"</POSITION>\n</AGENT>\n";
+			//exitFile << "<AGENT id='" + std::to_string(i) + "'>\n<POSITION>"+ std::to_string(agents[i].posX) +" "+ std::to_string(agents[i].posZ) +" "+ std::to_string(agents[i].posY) +"</POSITION>\n</AGENT>\n";
 		}
 
-		exitFile << "</FRAME>";
-		frameCount++;
+		//exitFile << "</FRAME>";
+		//frameCount++;
 	}
 }
 
@@ -1954,9 +2064,9 @@ void Simulation::ReadOBJFile()
 				//if it starts with v, it is vertice. else, if it starts with f, it is facet which form a triangle (hopefully!)
 				if (entries[0] == "v")
 				{
-					verticesX.push_back(std::stof(entries[1]) + obstacleDisplacement);
-					verticesY.push_back(std::stof(entries[2]) + obstacleDisplacement);
-					verticesZ.push_back(std::stof(entries[3]) + obstacleDisplacement);
+					verticesX.push_back((std::stof(entries[1]) + obstacleDisplacement)*obstacleScale);
+					verticesY.push_back((std::stof(entries[2]) + obstacleDisplacement)*obstacleScale);
+					verticesZ.push_back((std::stof(entries[3]) + obstacleDisplacement)*obstacleScale);
 				}
 				else if (entries[0] == "f")
 				{

@@ -43,10 +43,12 @@ class Simulation
 		clock_t startTime;
 		//simulation delta time
 		double simulationTime;
+		//graph nodes for A*
+		std::vector<int> graphNodes;
 		//xml for visualisation
-		std::string exitXml;
+		//std::string exitXml;
 		//"frame" count (Estevão said it needs to start at 24, for reasons...)
-		unsigned int frameCount;
+		//unsigned int frameCount;
 
 	//private attributes
 	private:
@@ -91,6 +93,8 @@ class Simulation
 		std::vector<float> multiple;
 		//how much is the obstacle far away from the world origin
 		float obstacleDisplacement;
+		//what is the obstacle scale
+		float obstacleScale;
 		//do we plot the scene?
 		bool plot;
 

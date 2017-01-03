@@ -23,6 +23,6 @@
 #include "Cell.h"
 #include "Agent.h"
 #include "Plot.h"
+#include "AStar.h"
+#include "AStarSearchNode.h"
 #include "Simulation.h"
-
-// TODO: reference additional headers your program requires here

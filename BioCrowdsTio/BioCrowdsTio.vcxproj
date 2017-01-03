@@ -147,8 +147,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Agent.h" />
+    <ClInclude Include="AStar.h" />
+    <ClInclude Include="AStarSearchNode.h" />
     <ClInclude Include="Cell.h" />
     <ClInclude Include="Goal.h" />
+    <ClInclude Include="fsa.h" />
     <ClInclude Include="Marker.h" />
     <ClInclude Include="Plot.h" />
     <ClInclude Include="Sign.h" />
@@ -158,6 +161,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Agent.cpp" />
+    <ClCompile Include="AStarSearchNode.cpp" />
     <ClCompile Include="BioCrowdsTio.cpp" />
     <ClCompile Include="Cell.cpp" />
     <ClCompile Include="Goal.cpp" />

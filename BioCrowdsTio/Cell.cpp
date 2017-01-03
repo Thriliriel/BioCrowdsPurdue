@@ -3,11 +3,16 @@
 
 Cell::Cell()
 {
+	//default: can pass
+	canPass = 1;
 }
 
 //initialize with its new position
 Cell::Cell(float newPosX, float newPosY, float newPosZ, std::string newName)
 {
+	//default: can pass
+	canPass = 1;
+
 	posX = newPosX;
 	posY = newPosY;
 	posZ = newPosZ;
