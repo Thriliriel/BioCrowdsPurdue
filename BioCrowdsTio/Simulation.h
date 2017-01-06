@@ -146,5 +146,6 @@ class Simulation
 		void PreCalcValues();
 		bool InsideObstacle(float pX, float pY, float pZ);
 		void UnlockAgent(Agent* agentToUnlock);
+		void AStarPath(Agent* agentPath);
 };
 

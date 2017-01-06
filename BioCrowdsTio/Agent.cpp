@@ -40,9 +40,12 @@ Agent::~Agent()
 }
 
 void Agent::Start() {
-	goalX = go[0]->posX;
+	/*goalX = go[0]->posX;
 	goalY = go[0]->posY;
-	goalZ = go[0]->posZ;
+	goalZ = go[0]->posZ;*/
+	goalX = pathX[0];
+	goalY = go[0]->posY;
+	goalZ = pathZ[0];
 	diffX = goalX - posX;
 	diffY = goalY - posY;
 	diffZ = goalZ - posZ;
@@ -58,19 +61,22 @@ void Agent::Update(std::vector<Sign>* allSigns) {
 	ClearAgent();
 
 	//update his goal
-	goalX = go[0]->posX;
+	/*goalX = go[0]->posX;
 	goalY = go[0]->posY;
 	goalZ = go[0]->posZ;
+	goalX = pathX[0];
+	goalY = go[0]->posY;
+	goalZ = pathZ[0];
 	diffX = goalX - posX;
 	diffY = goalY - posY;
 	diffZ = goalZ - posZ;
 	diffMod = Distance(diffX, diffY, diffZ, 0, 0, 0);
 	gX = diffX / diffMod;
 	gY = diffY / diffMod;
-	gZ = diffZ / diffMod;
+	gZ = diffZ / diffMod;*/
 
 	//check interaction with possible signs
-	CheckSignsInView(allSigns);
+	CheckSignsInView(allSigns);	
 }
 
 //clear agent´s informations
@@ -263,7 +269,7 @@ void Agent::CalculaVelocidade()
 
 //find all auxins near him (Voronoi Diagram)
 //call this method from game controller, to make it sequential for each agent
-void Agent::FindNearAuxins(float cellRadius, std::vector<Cell>* allCells, std::vector<Agent>* allAgents) {
+void Agent::FindNearAuxins(float cellRadius, std::vector<Cell>* allCells, std::vector<Agent>* allAgents, float worldSizeX, float worldSizeZ) {
 	//clear them all, for obvious reasons
 	myAuxins.clear();
 	//std::cout << cell->name << "\n";
@@ -283,7 +289,11 @@ void Agent::FindNearAuxins(float cellRadius, std::vector<Cell>* allCells, std::v
 	{
 		for (float j = startZ; j <= endZ; j = j + (cellRadius * 2))
 		{
-			float nameX = i - cellRadius;
+			//if it is out of the world, continue
+			if (i >= worldSizeX || j >= worldSizeZ) continue;
+
+			//THIS WAY IS FAR SLOWER, SO USE THE CRAZY FORMULA XD
+			/*float nameX = i - cellRadius;
 			float nameZ = j - cellRadius;
 
 			//find the cell
@@ -295,10 +305,14 @@ void Agent::FindNearAuxins(float cellRadius, std::vector<Cell>* allCells, std::v
 					//found, can break
 					break;
 				}
-			}
+			}*/
+
+			//crazy formula to get the right index of the neighbour cell
+			int indCell = (((i - cellRadius) / (cellRadius * 2)) * (worldSizeZ / (cellRadius * 2))) + ((j - cellRadius) / (cellRadius * 2));
 
 			//if it exists..
-			if (indCell >= 0)
+			//if (indCell >= 0)
+			if (indCell < allCells->size())
 			{
 				Cell *neighbourCell = &(*allCells)[indCell];
 
@@ -390,6 +404,32 @@ void Agent::ReorderGoals() {
 				go[j] = go[i];
 				go[i] = tempG;
 			}
+		}
+	}
+}
+
+//change agent path when he arrives at his next path node
+void Agent::ChangePath() {
+	//if distance to node center is less than 0.75 (max distance to the center =~ 0,7071)
+	float dist = Distance(goalX, goalY, goalZ, posX, posY, posZ);
+	if (dist < 0.75f)
+	{
+		if (!pathX.empty()) {
+			pathX.erase(pathX.begin());
+			pathZ.erase(pathZ.begin());
+		}
+
+		//update
+		//if it is empty, already at last node. So, set the actual goal
+		if (pathX.empty()) {
+			goalX = go[0]->posX;
+			goalY = go[0]->posY;
+			goalZ = go[0]->posZ;
+		}//else, next node
+		else {
+			goalX = pathX[0];
+			goalY = go[0]->posY;
+			goalZ = pathZ[0];
 		}
 	}
 }

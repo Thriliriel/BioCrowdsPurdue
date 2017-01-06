@@ -85,8 +85,8 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 		//exitFile << exitXml;
 
 		//draw the obstacles
-		//DrawObstacles();
-		ReadOBJFile();
+		DrawObstacles();
+		//ReadOBJFile();
 
 		//check group vertices
 		CheckGroupVertices();
@@ -142,8 +142,8 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 			int cellIndex = (int)round(RandomFloat(0, cells.size() - 1));
 
 			//generate the agent position
-			float x = RandomFloat(cells[cellIndex].posX - cellRadius, cells[cellIndex].posX + cellRadius);
-			float z = RandomFloat(cells[cellIndex].posZ - cellRadius, cells[cellIndex].posZ + cellRadius);
+			float x = (int)RandomFloat(cells[cellIndex].posX - cellRadius, cells[cellIndex].posX + cellRadius);
+			float z = (int)RandomFloat(cells[cellIndex].posZ - cellRadius, cells[cellIndex].posZ + cellRadius);
 
 			//see if there are agents in this radius. if not, instantiante
 			bool pCollider = false;
@@ -211,9 +211,6 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 				//reorder following intentions
 				newAgent.ReorderGoals();
 
-				//start default values
-				newAgent.Start();
-
 				agents.push_back(newAgent);
 			}
 		}
@@ -233,7 +230,8 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 	for (int i = 0; i < scenarioSizeX; i++) {
 		for (int j = 0; j < scenarioSizeZ; j++) {
 			int weight = 1;
-			if (InsideObstacle(i + 0.5f, 0, j + 0.5f)) {
+			if (InsideObstacle(i + 0.5f, 0, j + 0.5f) && InsideObstacle(i, 0, j) && InsideObstacle(i + 1, 0, j) && InsideObstacle(i, 0, j + 1) && InsideObstacle(i + 1, 0, j + 1)) {
+			//if (InsideObstacle(i + 0.5f, 0, j + 0.5f)) {
 				weight = 9;
 			}
 			graphNodes.push_back(weight);
@@ -251,89 +249,13 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 
 	/////////////////////////////////////////
 	//A* SEARCH
-	AStarSearch<AStarSearchNode> astarsearch;
+	//for each agent
+	for (int i = 0; i < qntAgents; i++) {
+		AStarPath(&agents[i]);
 
-	unsigned int SearchCount = 0;
-
-	const unsigned int NumSearches = 1;
-
-	while (SearchCount < NumSearches)
-	{
-		// Create a start state
-		AStarSearchNode nodeStart;
-		nodeStart.x = agents[0].posX;
-		nodeStart.y = agents[0].posZ;
-		nodeStart.maxSizeX = scenarioSizeX;
-		nodeStart.maxSizeZ = scenarioSizeZ;
-		nodeStart.graphNodes = &graphNodes;
-
-		// Define the goal state
-		AStarSearchNode nodeEnd;
-		nodeEnd.x = agents[0].goalX;
-		nodeEnd.y = agents[0].goalZ;
-		nodeEnd.maxSizeX = scenarioSizeX;
-		nodeEnd.maxSizeZ = scenarioSizeZ;
-		nodeEnd.graphNodes = &graphNodes;
-		std::cout << nodeStart.x << " -- " << nodeStart.y << "\n";
-		std::cout << nodeEnd.x << " -- " << nodeEnd.y << "\n";
-		std::cout << agents[0].go[0]->name << "\n";
-		if (InsideObstacle(nodeEnd.x, 0, nodeEnd.y)) {
-			std::cout << "RAAAA\n";
-		}
-		// Set Start and goal states
-		astarsearch.SetStartAndGoalStates(nodeStart, nodeEnd);
-		std::system("PAUSE");
-		unsigned int SearchState;
-		unsigned int SearchSteps = 0;
-
-		do
-		{
-			SearchState = astarsearch.SearchStep();
-
-			SearchSteps++;
-		} while (SearchState == AStarSearch<AStarSearchNode>::SEARCH_STATE_SEARCHING);
-
-		if (SearchState == AStarSearch<AStarSearchNode>::SEARCH_STATE_SUCCEEDED)
-		{
-			cout << "Search found goal state\n";
-
-			AStarSearchNode *node = astarsearch.GetSolutionStart();
-
-			int steps = 0;
-
-			node->PrintNodeInfo();
-			for (;; )
-			{
-				node = astarsearch.GetSolutionNext();
-
-				if (!node)
-				{
-					break;
-				}
-
-				node->PrintNodeInfo();
-				steps++;
-
-			};
-
-			cout << "Solution steps " << steps << endl;
-
-			// Once you're done with the solution you can free the nodes up
-			astarsearch.FreeSolutionNodes();
-		}
-		else if (SearchState == AStarSearch<AStarSearchNode>::SEARCH_STATE_FAILED)
-		{
-			cout << "Search terminated. Did not find goal state\n";
-		}
-
-		// Display the number of loops the search went through
-		cout << "SearchSteps : " << SearchSteps << "\n";
-
-		SearchCount++;
-
-		astarsearch.EnsureMemoryFreed();
+		//start default values
+		agents[i].Start();
 	}
-
 	//END A* SEARCH
 	////////////////////////////////////////
 
@@ -417,6 +339,7 @@ void Simulation::DefaultValues() {
 	obstacleDisplacement = 500;
 	//what is the obstacle scale
 	obstacleScale = 0.1;
+	//obstacleScale = 1;
 	//start the frame count at 24
 	//frameCount = 24;
 	//do we plot the scene?
@@ -1113,9 +1036,9 @@ void Simulation::DrawCells()
 
 			//if did collide it all, means we have found at least 1 obstacle in each case. So, the cell is covered by an obstacle
 			//otherwise, we go on
-			if (!collideRight || !collideLeft || !collideTop || !collideDown)
-			//UPDATE: WE ALWAYS CREATE THE CELL, SO WE CAN USE IT FOR A*
-			//if (true)
+			//if (!collideRight || !collideLeft || !collideTop || !collideDown)
+			//UPDATE: WE ALWAYS CREATE THE CELL, SO WE CAN EASILY FIND THE NEIGHBOR CELLS LATER
+			if (true)
 			{
 				//new cell
 				Cell newCell(newPositionX + i, newPositionY, newPositionZ + j, "cell" + std::to_string(i) + "-" + std::to_string(j));
@@ -1390,7 +1313,7 @@ void Simulation::Update(double elapsed) {
 		for (int i = 0; i < agents.size(); i++)
 		{
 			//find all auxins near him (Voronoi Diagram)
-			agents[i].FindNearAuxins(cellRadius, &cells, &agents);
+			agents[i].FindNearAuxins(cellRadius, &cells, &agents, scenarioSizeX, scenarioSizeZ);
 		}
 		//std::cout << agents[0].GetAuxins().size() << "\n";
 		/*
@@ -1488,6 +1411,9 @@ void Simulation::Update(double elapsed) {
 			//walk
 			agents[i].Caminhe(elapsed);
 
+			//need to change path node?
+			agents[i].ChangePath();
+
 			//std::cout << "Segundos: " << ((float)simulationT) / CLOCKS_PER_SEC << "\n";
 			//std::cout << agents[i].name << ": " << agents[i].posX << "-" << agents[i].posZ << "\n";
 
@@ -1521,12 +1447,18 @@ void Simulation::Update(double elapsed) {
 							std::cout << agents[i].go[j]->name << ": PosX - " << agents[i].go[j]->posX << " -- PosZ - "
 								<< agents[i].go[j]->posZ << " -- Intention: " << agents[i].intentions[j] << "\n";
 						}*/
+
+						//need to recalculate path
+						AStarPath(&agents[i]);
 					}//else, just remove it
 					else {
 						std::cout << agents[i].name << " chegou no goal " << agents[i].go[0]->name << "\n";
 						agents[i].go.erase(agents[i].go.begin());
 						agents[i].intentions.erase(agents[i].intentions.begin());
 						agents[i].RemoveDesire(0);
+
+						//need to recalculate path
+						AStarPath(&agents[i]);
 					}
 				}
 			}
@@ -1590,11 +1522,11 @@ void Simulation::DrawObstacles() {
 	//vertice 2
 	verticesX.push_back(5.0f);
 	verticesY.push_back(0.0f);
-	verticesZ.push_back(13.0f);
+	verticesZ.push_back(15.0f);
 	//vertice 3
 	verticesX.push_back(15.0f);
 	verticesY.push_back(0.0f);
-	verticesZ.push_back(13.0f);
+	verticesZ.push_back(15.0f);
 	//vertice 4
 	verticesX.push_back(15.0f);
 	verticesY.push_back(0.0f);
@@ -2099,8 +2031,8 @@ void Simulation::GenerateLookingFor() {
 		//while i have an obstacle on the way
 		while (pCollider) {
 			//generate the new position
-			float x = RandomFloat(0, scenarioSizeX);
-			float z = RandomFloat(0, scenarioSizeZ);
+			float x = (int)RandomFloat(0, scenarioSizeX);
+			float z = (int)RandomFloat(0, scenarioSizeZ);
 
 			//check if it is not inside an obstacle
 			bool pCollider = InsideObstacle(x, 0, z);
@@ -2248,10 +2180,9 @@ bool Simulation::InsideObstacle(float pX, float pY, float pZ) {
 }
 
 //unlock agent if he stops because an obstacle
-//@TODO: A* to avoid it
 void Simulation::UnlockAgent(Agent* agentToUnlock) {
 	std::cout << agentToUnlock->name << " has locked at position " << agentToUnlock->posX << " -- " << agentToUnlock->posZ << "!\n";
-	float agentDisplacement = 10;
+	int agentDisplacement = 10;
 	while (true) {
 		//generate a new random position inside a radius
 		float minX = agentToUnlock->posX - agentDisplacement;
@@ -2264,8 +2195,8 @@ void Simulation::UnlockAgent(Agent* agentToUnlock) {
 		if (maxX > scenarioSizeX) maxX = scenarioSizeX;
 		if (maxZ > scenarioSizeZ) maxZ = scenarioSizeZ;
 
-		float x = RandomFloat(minX, maxX);
-		float z = RandomFloat(minZ, maxZ);
+		float x = (int)RandomFloat(minX, maxX);
+		float z = (int)RandomFloat(minZ, maxZ);
 
 		//see if there are agents in this radius. if not, new position
 		bool pCollider = false;
@@ -2290,7 +2221,106 @@ void Simulation::UnlockAgent(Agent* agentToUnlock) {
 
 			std::cout << agentToUnlock->name << " new position: " << x << " -- " << z << "\n";
 
+			//need to recalculate path
+			AStarPath(agentToUnlock);
+
 			break;
 		}
+	}
+}
+
+//A Star Search Path
+void Simulation::AStarPath(Agent* agentPath) {
+	//clear actual path
+	agentPath->pathX.clear();
+	agentPath->pathZ.clear();
+
+	//A* SEARCH
+	AStarSearch<AStarSearchNode> astarsearch;
+
+	unsigned int SearchCount = 0;
+
+	const unsigned int NumSearches = 1;
+
+	while (SearchCount < NumSearches)
+	{
+		// Create a start state
+		AStarSearchNode nodeStart;
+
+		nodeStart.x = agentPath->posX;
+		nodeStart.y = agentPath->posZ;
+		nodeStart.maxSizeX = scenarioSizeX;
+		nodeStart.maxSizeZ = scenarioSizeZ;
+		nodeStart.graphNodes = &graphNodes;
+
+		// Define the goal state
+		AStarSearchNode nodeEnd;
+		nodeEnd.x = agentPath->go[0]->posX;
+		nodeEnd.y = agentPath->go[0]->posZ;
+		nodeEnd.maxSizeX = scenarioSizeX;
+		nodeEnd.maxSizeZ = scenarioSizeZ;
+		nodeEnd.graphNodes = &graphNodes;
+		/*std::cout << nodeStart.x << " -- " << nodeStart.y << "\n";
+		std::cout << nodeEnd.x << " -- " << nodeEnd.y << "\n";
+		std::cout << agentPath->go[0]->name << "\n";
+		std::cout << graphNodes[(nodeStart.x*scenarioSizeZ) + nodeStart.y] << "\n";
+		std::cout << graphNodes[(nodeEnd.x*scenarioSizeZ) + nodeEnd.y] << "\n";
+		if (InsideObstacle(nodeEnd.x, 0, nodeEnd.y)) {
+			std::cout << "RAAAA\n";
+		}*/
+		// Set Start and goal states
+		astarsearch.SetStartAndGoalStates(nodeStart, nodeEnd);
+		//std::system("PAUSE");
+		unsigned int SearchState;
+		unsigned int SearchSteps = 0;
+
+		do
+		{
+			SearchState = astarsearch.SearchStep();
+
+			SearchSteps++;
+		} while (SearchState == AStarSearch<AStarSearchNode>::SEARCH_STATE_SEARCHING);
+
+		if (SearchState == AStarSearch<AStarSearchNode>::SEARCH_STATE_SUCCEEDED)
+		{
+			//cout << "Search found goal state\n";
+
+			AStarSearchNode *node = astarsearch.GetSolutionStart();
+
+			int steps = 0;
+
+			//node->PrintNodeInfo();
+			for (;; )
+			{
+				node = astarsearch.GetSolutionNext();
+
+				if (!node)
+				{
+					break;
+				}
+
+				agentPath->pathX.push_back(node->x);
+				agentPath->pathZ.push_back(node->y);
+
+				//node->PrintNodeInfo();
+				steps++;
+			};
+
+			//cout << "Solution steps " << steps << endl;
+
+			// Once you're done with the solution you can free the nodes up
+			astarsearch.FreeSolutionNodes();
+		}
+		else if (SearchState == AStarSearch<AStarSearchNode>::SEARCH_STATE_FAILED)
+		{
+			cout << "Search terminated. Did not find goal state\n";
+		}
+
+		// Display the number of loops the search went through
+		//cout << "SearchSteps : " << SearchSteps << "\n";
+
+		SearchCount++;
+
+		astarsearch.EnsureMemoryFreed();
 	}
 }

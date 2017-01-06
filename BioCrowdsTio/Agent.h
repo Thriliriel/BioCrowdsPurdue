@@ -41,6 +41,9 @@ class Agent
 		unsigned int idleTimer;
 		//how many iterations agent can stay idle?
 		unsigned int maxIdleTimer;
+		//agent A* path
+		std::vector<int> pathX;
+		std::vector<int> pathZ;
 
 	//private attributes
 	private:
@@ -48,9 +51,6 @@ class Agent
 		std::vector<Marker*> myAuxins;
 		//agent cell
 		Cell *cell;
-		//path
-		//@TODO: como colocar o A*???
-		//private NavMeshPath path;
 		//goals desire
 		std::vector<float> desire;
 		/*
@@ -84,13 +84,14 @@ class Agent
 		void Caminhe(float tempo);
 		void CalculaDirecaoM();
 		void CalculaVelocidade();
-		void FindNearAuxins(float cellRadius, std::vector<Cell>* allCells, std::vector<Agent>* allAgents);
+		void FindNearAuxins(float cellRadius, std::vector<Cell>* allCells, std::vector<Agent>* allAgents, float worldSizeX, float worldSizeZ);
 		Cell* GetCell();
 		void SetCell(Cell* newCell);
 		void AddAuxin(Marker *newAuxin);
 		std::vector<Marker*> GetAuxins();
 		void AddDesire(float newDesire);
 		void RemoveDesire(int index);
+		void ChangePath();
 	//private methods
 	private:
 		float Distance(float x1, float y1, float z1, float x2, float y2, float z2);
