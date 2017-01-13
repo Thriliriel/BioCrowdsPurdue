@@ -62,7 +62,7 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 
 		//check group vertices
 		CheckGroupVertices();
-		std::cout << verticesObstaclesX.size() << " -- " << verticesObstaclesZ.size() << "\n";
+		//std::cout << verticesObstaclesX.size() << " -- " << verticesObstaclesZ.size() << "\n";
 
 		//start from the first one
 		LoadChainSimulation();
@@ -90,26 +90,30 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 
 		//check group vertices
 		CheckGroupVertices();
-		std::cout << verticesObstaclesX.size() << " -- " << verticesObstaclesZ.size() << "\n";
+		//std::cout << verticesObstaclesX.size() << " -- " << verticesObstaclesZ.size() << "\n";
 
 		//precalc values to check obstacles
-		PreCalcValues();
+		//PreCalcValues();
 		//std::cout << "Qnt Obstacles: " << obstacles.size() << "\n";
 		//std::cout << "Vertice: " << obstacles[0].verticesX[0] << "\n";
+
+		//draw cells
 		DrawCells();
+
+		//place the markers
 		//PlaceAuxins();
 		PlaceAuxinsAsGrid();
 		std::cout << "Qnt Cells: " << cells.size() << "\n";
 
 		//instantiante some goals
-		DrawGoal("Restaurant", 3, 0, 18, false);
+		/*DrawGoal("Restaurant", 3, 0, 18, false);
 		DrawGoal("Theater", 27, 0, 17, false);
 		DrawGoal("Stadium", 5, 0, 3, false);
-		DrawGoal("AppleStore", 25, 0, 5, false);
-		/*DrawGoal("Restaurant", 12.2, 0, 93.6, false);
-		DrawGoal("Theater", 70.6, 0, 76.5, false);
-		DrawGoal("Stadium", 45.7, 0, 36.1, false);
-		DrawGoal("AppleStore", 92, 0, 39.5, false);*/
+		DrawGoal("AppleStore", 25, 0, 5, false);*/
+		DrawGoal("Restaurant", 50, 0, 50, false);
+		DrawGoal("Theater", 42, 0, 30, false);
+		DrawGoal("Stadium", 5, 0, 80, false);
+		DrawGoal("AppleStore", 92, 0, 16, false);
 
 		//generate all looking for states
 		GenerateLookingFor();
@@ -227,29 +231,32 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 	}*/
 
 	//create the graph nodes
-	for (int i = 0; i < scenarioSizeX; i++) {
-		for (int j = 0; j < scenarioSizeZ; j++) {
+	for (float i = 0; i < scenarioSizeX; i = i + nodeSize) {
+		for (float j = 0; j < scenarioSizeZ; j = j + nodeSize) {
 			int weight = 1;
-			if (InsideObstacle(i + 0.5f, 0, j + 0.5f) && InsideObstacle(i, 0, j) && InsideObstacle(i + 1, 0, j) && InsideObstacle(i, 0, j + 1) && InsideObstacle(i + 1, 0, j + 1)) {
-			//if (InsideObstacle(i + 0.5f, 0, j + 0.5f)) {
+
+			if (InsideObstacle(i, 0, j)) {
 				weight = 9;
 			}
 			graphNodes.push_back(weight);
 		}
 	}
 
-	/*for (int i = 0; i < scenarioSizeX; i++) {
-		for (int j = 0; j < scenarioSizeZ; j++) {
+	/*for (float i = 0; i < scenarioSizeX; i = i + nodeSize) {
+		for (float j = 0; j < scenarioSizeZ; j = j + nodeSize) {
 			//std::cout << graphNodes[(j*scenarioSizeX) + i] << "\t";
-			std::cout << i << "-" << j << "--" << ((i*scenarioSizeZ) + j) << ": " << graphNodes[(i*scenarioSizeZ) + j] << "\t";
+			//(((i - cellRadius) / (cellRadius * 2)) * (worldSizeZ / (cellRadius * 2))) + ((j - cellRadius) / (cellRadius * 2))
+			//std::cout << i << "-" << j << "--" << ((i*scenarioSizeZ) + j) << ": " << graphNodes[(i*scenarioSizeZ) + j] << "\t";
+			std::cout << i << "-" << j << "--" << (((i / nodeSize)*(scenarioSizeZ / nodeSize)) + (j / nodeSize)) << ": " << graphNodes[(((i / nodeSize)*(scenarioSizeZ / nodeSize)) + (j / nodeSize))] << "\t";
 		}
 		std::cout << "\n";
-	}
-	std::cout << graphNodes.size() << "\n";*/
+	}*/
+	//std::cout << graphNodes.size() << "\n";
 
 	/////////////////////////////////////////
 	//A* SEARCH
 	//for each agent
+	std::cout << "Generating paths...\n";
 	for (int i = 0; i < qntAgents; i++) {
 		AStarPath(&agents[i]);
 
@@ -258,6 +265,7 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 	}
 	//END A* SEARCH
 	////////////////////////////////////////
+	std::cout << "Paths done!\n";
 
 	//all ready to go. If saveConfigFile is checked, save this config in a csv file
 	if (saveConfigFile)
@@ -265,14 +273,9 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 		std::cout << "SAVING CONFIG FILE!!\n";
 
 		Simulation::SaveConfigFile();
-	}
+	}	
 
-	//if plot..PLOT!
-	if (plot) {
-		Plot plotObject("BioCrowds Plot", 480, 480, argcp, argv);
-	}
-
-	std::system("PAUSE");
+	//std::system("PAUSE");
 
 	std::cout << "STARTING TO RUN!!\n";
 
@@ -282,7 +285,7 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 	//std::cout << (double)clock() / CLOCKS_PER_SEC << " -- " << simulationTime << "\n";
 
 	//start
-	StartSimulation();
+	StartSimulation(argcp, argv);
 }
 
 void Simulation::DefaultValues() {
@@ -343,7 +346,10 @@ void Simulation::DefaultValues() {
 	//start the frame count at 24
 	//frameCount = 24;
 	//do we plot the scene?
+	//@TODO: NOT WORKING YET
 	plot = false;
+	//default node size
+	nodeSize = 1;
 	//start the exit xml with the default values
 	/*exitXml = "<?xml version='1.0' ?>\n<SIMULATION Path='.'>\n";
 	exitXml += "<AGENTS Quantity='10'>\n<AGENT id='0' />\n<AGENT id='1' />\n<AGENT id='2' />\n<AGENT id='3' />\n<AGENT id='4' />\n<AGENT id='5' />\n<AGENT id='6' />\n<AGENT id='7' />\n<AGENT id='8' />\n<AGENT id='9' />\n</AGENTS>\n";
@@ -355,9 +361,17 @@ void Simulation::DefaultValues() {
 }
 
 //start the simulation and control the update
-void Simulation::StartSimulation() {
+void Simulation::StartSimulation(int argcp, char **argv) {
 	//fps control
 	double fpsTime = 0;
+	Plot plotObject;
+
+	//if plot..PLOT!
+	//NOT WORKING YET, SO KEEP IT FALSE
+	//IT USES GLU LIBRARIES, MAYBE NEED TO REMOVE IT TO RUN
+	if (plot) {
+		plotObject = Plot("BioCrowds Plot", scenarioSizeX, scenarioSizeZ, argcp, argv);
+	}
 
 	//each time step, call again
 	while (true) {
@@ -374,11 +388,24 @@ void Simulation::StartSimulation() {
 			fpsTime -= (1 / fps);
 		}*/
 		Update(1);
+
+		//update plot
+		//NOT WORKING YET, SO KEEP IT FALSE
+		//IT USES GLU LIBRARIES, MAYBE NEED TO REMOVE IT TO RUN
+		if (plot) {
+			plotObject.MainLoop();
+		}
+
+		//if game over, byyye
+		if (gameOver) {
+			break;
+		}
 	}
 }
 
 //checks if simulation is over
 //for that, we check if is there still an agent in the scene
+//just used when loadConfigFile = true
 void Simulation::EndSimulation() {
 	if (agents.size() == 0) {
 		std::cout << "Finishing Simulation " + std::to_string(simulationIndex) << "\n";
@@ -456,6 +483,7 @@ void Simulation::EndSimulation() {
 
 //control all chained simulations
 //get the new set of files to setup the new simulation and start
+//just used when loadConfigFile = true
 void Simulation::LoadChainSimulation() {
 	// Create a new StreamReader, tell it which file to read and what encoding the file
 	std::ifstream theReader;
@@ -583,6 +611,7 @@ void Simulation::LoadChainSimulation() {
 }
 
 //load a csv config file
+//just used when loadConfigFile = true
 void Simulation::LoadConfigFile() {
 	std::string line;
 
@@ -729,7 +758,6 @@ void Simulation::LoadConfigFile() {
 		std::cout << goals[i].name << "\n";
 	}*/
 
-
 	//signs file, with signs and their appeals
 	theReader.open(signsFilename);
 
@@ -758,6 +786,7 @@ void Simulation::LoadConfigFile() {
 				float newPositionZ = 0;
 				//define position based on obstacle vertices
 				//just have 1 obstacle
+				//@TODO: make it work again for more than 1 obstacle
 				//if (allObstacles.Length > 0) {
 				if (true) {
 					//if (allObstacles.Length == 1)
@@ -836,13 +865,14 @@ void Simulation::LoadConfigFile() {
 }
 
 //load cells and auxins and obstacles and goals (static stuff)
+//just used with loadConfigFile = true
 void Simulation::LoadCellsAuxins() {
 	//read the obstacle file
 	ReadOBJFile();
 	//DrawObstacles();
 
 	//precalc values to check obstacles
-	PreCalcValues();
+	//PreCalcValues();
 
 	// Create a new reader, tell it which file to read
 	std::ifstream theReader;
@@ -853,7 +883,7 @@ void Simulation::LoadCellsAuxins() {
 
 	int lineCount = 1;
 	// While there's lines left in the text file, do this:
-	/*do
+	do
 	{
 		std::getline(theReader, line);
 
@@ -938,8 +968,8 @@ void Simulation::LoadCellsAuxins() {
 		lineCount++;
 	} while (line != "" && !line.empty());
 	// Done reading, close the reader and return true to broadcast success
-	theReader.close();*/
-	DrawCells();
+	theReader.close();
+	//DrawCells();
 	PlaceAuxinsAsGrid();
 
 	std::cout << "Qnt Cells: " << cells.size() << "\n";
@@ -1123,7 +1153,7 @@ void Simulation::PlaceAuxins() {
 			}
 		}
 
-		std::cout << cells[c].name << " done adding markers! Qnt markers: " << cells[c].GetAuxins()->size() << "\n";
+		//std::cout << cells[c].name << " done adding markers! Qnt markers: " << cells[c].GetAuxins()->size() << "\n";
 	}
 
 	/*for (int i = 0; i < cells.size(); i++) {
@@ -1171,7 +1201,7 @@ void Simulation::PlaceAuxinsAsGrid() {
 			}
 		}
 
-		std::cout << cells[c].name << " done adding markers! Qnt markers: " << cells[c].GetAuxins()->size() << "\n";
+		//std::cout << cells[c].name << " done adding markers! Qnt markers: " << cells[c].GetAuxins()->size() << "\n";
 	}
 
 	/*for (int i = 0; i < cells.size(); i++) {
@@ -1335,7 +1365,11 @@ void Simulation::Update(double elapsed) {
 		for (int i = 0; i < agents.size(); i++)
 		{
 			//update agent
-			agents[i].Update(&signs);
+			bool recalculatePath = agents[i].Update(&signs);
+			if (recalculatePath) {
+				//need to recalculate path
+				AStarPath(&agents[i]);
+			}
 
 			//find his goal
 			Goal *goal = agents[i].go[0];
@@ -1431,7 +1465,7 @@ void Simulation::Update(double elapsed) {
 				//if he has 2 goals yet, but the second one is the Looking For, he arrived too
 				if (agents[i].go.size() == 1 || (agents[i].go.size() == 2 && agents[i].go[1]->name == "LookingFor"))
 				{
-					std::cout << agents[i].name << " chegou no goal " << agents[i].go[0]->name << ", terminou!!\n";
+					std::cout << agents[i].name << " arrived at goal " << agents[i].go[0]->name << ", finished!!\n";
 					SaveAgentsGoalFile(agents[i].name, goal->name);
 					agents.erase(agents.begin() + i);
 					//this agent is done. Back to the for
@@ -1452,7 +1486,7 @@ void Simulation::Update(double elapsed) {
 						AStarPath(&agents[i]);
 					}//else, just remove it
 					else {
-						std::cout << agents[i].name << " chegou no goal " << agents[i].go[0]->name << "\n";
+						std::cout << agents[i].name << " arrived at goal " << agents[i].go[0]->name << "\n";
 						agents[i].go.erase(agents[i].go.begin());
 						agents[i].intentions.erase(agents[i].intentions.begin());
 						agents[i].RemoveDesire(0);
@@ -1466,6 +1500,11 @@ void Simulation::Update(double elapsed) {
 
 		//write the exit file
 		SaveExitFile();
+
+		//if there are agents no more, bye
+		if (agents.size() == 0) {
+			gameOver = true;
+		}
 
 		//End simulation?
 		if (loadConfigFile)
@@ -1508,7 +1547,7 @@ void Simulation::SaveAgentsGoalFile(std::string agentName, std::string goalName)
 
 //"draw" obstacles on the scene
 void Simulation::DrawObstacles() {
-	//draw rectangle
+	//draw rectangle 1
 	std::vector<float> verticesX;
 	std::vector<float> verticesY;
 	std::vector<float> verticesZ;
@@ -1516,19 +1555,19 @@ void Simulation::DrawObstacles() {
 
 	//set vertices
 	//vertice 1
-	verticesX.push_back(5.0f);
+	verticesX.push_back(10.0f);
 	verticesY.push_back(0.0f);
 	verticesZ.push_back(10.0f);
 	//vertice 2
-	verticesX.push_back(5.0f);
+	verticesX.push_back(10.0f);
 	verticesY.push_back(0.0f);
-	verticesZ.push_back(15.0f);
+	verticesZ.push_back(40.0f);
 	//vertice 3
-	verticesX.push_back(15.0f);
+	verticesX.push_back(40.0f);
 	verticesY.push_back(0.0f);
-	verticesZ.push_back(15.0f);
+	verticesZ.push_back(40.0f);
 	//vertice 4
-	verticesX.push_back(15.0f);
+	verticesX.push_back(40.0f);
 	verticesY.push_back(0.0f);
 	verticesZ.push_back(10.0f);
 
@@ -1542,19 +1581,131 @@ void Simulation::DrawObstacles() {
 
 	//"draw" it
 	DrawObstacle(verticesX, verticesY, verticesZ, triangles);
+	//end rectangle 1
 
-	//build the navmesh at runtime
-	//NavMeshBuilder.BuildNavMesh();
+	//rectangle 2
+	verticesX.clear();
+	verticesY.clear();
+	verticesZ.clear();
+	triangles.clear();
+
+	//set vertices
+	//vertice 1
+	verticesX.push_back(10.0f);
+	verticesY.push_back(0.0f);
+	verticesZ.push_back(60.0f);
+	//vertice 2
+	verticesX.push_back(10.0f);
+	verticesY.push_back(0.0f);
+	verticesZ.push_back(90.0f);
+	//vertice 3
+	verticesX.push_back(40.0f);
+	verticesY.push_back(0.0f);
+	verticesZ.push_back(90.0f);
+	//vertice 4
+	verticesX.push_back(40.0f);
+	verticesY.push_back(0.0f);
+	verticesZ.push_back(60.0f);
+
+	//triangles
+	triangles.push_back(0);
+	triangles.push_back(1);
+	triangles.push_back(2);
+	triangles.push_back(2);
+	triangles.push_back(3);
+	triangles.push_back(0);
+
+	//"draw" it
+	DrawObstacle(verticesX, verticesY, verticesZ, triangles);
+	//end rectangle 2
+
+	//rectangle 3
+	verticesX.clear();
+	verticesY.clear();
+	verticesZ.clear();
+	triangles.clear();
+
+	//set vertices
+	//vertice 1
+	verticesX.push_back(60.0f);
+	verticesY.push_back(0.0f);
+	verticesZ.push_back(10.0f);
+	//vertice 2
+	verticesX.push_back(60.0f);
+	verticesY.push_back(0.0f);
+	verticesZ.push_back(40.0f);
+	//vertice 3
+	verticesX.push_back(90.0f);
+	verticesY.push_back(0.0f);
+	verticesZ.push_back(40.0f);
+	//vertice 4
+	verticesX.push_back(90.0f);
+	verticesY.push_back(0.0f);
+	verticesZ.push_back(10.0f);
+
+	//triangles
+	triangles.push_back(0);
+	triangles.push_back(1);
+	triangles.push_back(2);
+	triangles.push_back(2);
+	triangles.push_back(3);
+	triangles.push_back(0);
+
+	//"draw" it
+	DrawObstacle(verticesX, verticesY, verticesZ, triangles);
+	//end rectangle 3
+
+	//rectangle 4
+	verticesX.clear();
+	verticesY.clear();
+	verticesZ.clear();
+	triangles.clear();
+
+	//set vertices
+	//vertice 1
+	verticesX.push_back(60.0f);
+	verticesY.push_back(0.0f);
+	verticesZ.push_back(60.0f);
+	//vertice 2
+	verticesX.push_back(60.0f);
+	verticesY.push_back(0.0f);
+	verticesZ.push_back(90.0f);
+	//vertice 3
+	verticesX.push_back(90.0f);
+	verticesY.push_back(0.0f);
+	verticesZ.push_back(90.0f);
+	//vertice 4
+	verticesX.push_back(90.0f);
+	verticesY.push_back(0.0f);
+	verticesZ.push_back(60.0f);
+
+	//triangles
+	triangles.push_back(0);
+	triangles.push_back(1);
+	triangles.push_back(2);
+	triangles.push_back(2);
+	triangles.push_back(3);
+	triangles.push_back(0);
+
+	//"draw" it
+	DrawObstacle(verticesX, verticesY, verticesZ, triangles);
+	//end rectangle 4
 }
 
 //draw each obstacle, placing its vertices on the verticesObstacles. So, signs can be instantiated on those places
 void Simulation::DrawObstacle(std::vector<float> verticesX, std::vector<float> verticesY, std::vector<float> verticesZ, std::vector<int> triangles) {
+	polygonX.clear();
+	polygonZ.clear();
+
 	for (int i = 0; i < verticesX.size(); i++) {
 		//polygon for InsideObstacle calculus
-		//@TODO: CHECK IF IT WORKS FOR 2 OR MORE OBSTACLES!! (not necessary for Purdue)
+		//@TODO: CHECK IF IT WORKS FOR 2 OR MORE OBSTACLES!! (not necessary for Purdue) -- SEEMS LIKE IT DOES NOT WORK!
 		polygonX.push_back(verticesX[i]);
 		polygonZ.push_back(verticesZ[i]);
 	}
+
+	obstaclesX.push_back(polygonX);
+	obstaclesZ.push_back(polygonZ);
 
 	//triangles
 	trianglesObstacle = triangles;
@@ -1954,7 +2105,7 @@ void Simulation::CheckGroupVertices()
 	verticesObstaclesZ = newVerticesZ;
 }
 
-//TEST TO READ THE 4X4.OBJ
+//READ THE 4X4.OBJ
 void Simulation::ReadOBJFile()
 {
 	std::ifstream theReader;
@@ -2052,8 +2203,8 @@ void Simulation::ChangeLookingFor(Goal* changeLF) {
 	//while i have an obstacle on the way
 	while (pCollider) {
 		//generate the new position
-		float x = RandomFloat(0, scenarioSizeX);
-		float z = RandomFloat(0, scenarioSizeZ);
+		float x = (int)RandomFloat(0, scenarioSizeX);
+		float z = (int)RandomFloat(0, scenarioSizeZ);
 
 		//check if it is not inside an obstacle
 		bool pCollider = InsideObstacle(x, 0, z);
@@ -2147,7 +2298,8 @@ bool Simulation::Contains(std::vector<float> arrayToSearch, std::vector<float> a
 //  Note that division by zero is avoided because the division is protected
 //  by the "if" clause which surrounds it.
 
-void Simulation::PreCalcValues() {
+//maybe necessary later, stay here son
+/*void Simulation::PreCalcValues() {
 	int   i, j = polygonX.size() - 1;
 
 	for (i = 0; i < polygonX.size(); i++) {
@@ -2162,9 +2314,33 @@ void Simulation::PreCalcValues() {
 		}
 		j = i;
 	}
+}*/
+
+//THIS ONE DOES NOT NEED THE PRECALCVALUES() AND CHECK ALL OBSTACLES IN THE SCENE
+bool Simulation::InsideObstacle(float pX, float pY, float pZ) {
+	bool  oddNodes = false;
+
+	for (int o = 0; o < obstaclesX.size(); o++) {
+		int   i, j = obstaclesX[o].size() - 1;
+		oddNodes = false;
+
+		for (i = 0; i < obstaclesX[o].size(); i++) {
+			if ((obstaclesZ[o][i] < pZ && obstaclesZ[o][j] >= pZ
+				|| obstaclesZ[o][j] < pZ && obstaclesZ[o][i] >= pZ)
+				&& (obstaclesX[o][i] <= pX || obstaclesX[o][j] <= pX)) {
+				oddNodes ^= (obstaclesX[o][i] + (pZ - obstaclesZ[o][i]) / (obstaclesZ[o][j] - obstaclesZ[o][i])*(obstaclesX[o][j] - obstaclesX[o][i]) < pX);
+			}
+			j = i;
+		}
+
+		if (oddNodes) return oddNodes;
+	}
+
+	return oddNodes;
 }
 
-bool Simulation::InsideObstacle(float pX, float pY, float pZ) {
+//maybe necessary later, stay here son
+/*bool Simulation::InsideObstacle(float pX, float pY, float pZ) {
 	int   i, j = polygonX.size() - 1;
 	bool  oddNodes = false;
 
@@ -2177,7 +2353,7 @@ bool Simulation::InsideObstacle(float pX, float pY, float pZ) {
 	}
 
 	return oddNodes;
-}
+}*/
 
 //unlock agent if he stops because an obstacle
 void Simulation::UnlockAgent(Agent* agentToUnlock) {
@@ -2247,11 +2423,12 @@ void Simulation::AStarPath(Agent* agentPath) {
 		// Create a start state
 		AStarSearchNode nodeStart;
 
-		nodeStart.x = agentPath->posX;
-		nodeStart.y = agentPath->posZ;
+		nodeStart.x = (int)agentPath->posX;
+		nodeStart.y = (int)agentPath->posZ;
 		nodeStart.maxSizeX = scenarioSizeX;
 		nodeStart.maxSizeZ = scenarioSizeZ;
 		nodeStart.graphNodes = &graphNodes;
+		nodeStart.nodeSize = nodeSize;
 
 		// Define the goal state
 		AStarSearchNode nodeEnd;
@@ -2260,12 +2437,13 @@ void Simulation::AStarPath(Agent* agentPath) {
 		nodeEnd.maxSizeX = scenarioSizeX;
 		nodeEnd.maxSizeZ = scenarioSizeZ;
 		nodeEnd.graphNodes = &graphNodes;
+		nodeEnd.nodeSize = nodeSize;
 		/*std::cout << nodeStart.x << " -- " << nodeStart.y << "\n";
 		std::cout << nodeEnd.x << " -- " << nodeEnd.y << "\n";
 		std::cout << agentPath->go[0]->name << "\n";
-		std::cout << graphNodes[(nodeStart.x*scenarioSizeZ) + nodeStart.y] << "\n";
-		std::cout << graphNodes[(nodeEnd.x*scenarioSizeZ) + nodeEnd.y] << "\n";
-		if (InsideObstacle(nodeEnd.x, 0, nodeEnd.y)) {
+		std::cout << graphNodes[((nodeStart.x / nodeSize)*(scenarioSizeZ / nodeSize)) + (nodeStart.y / nodeSize)] << "\n";
+		std::cout << graphNodes[((nodeEnd.x / nodeSize)*(scenarioSizeZ / nodeSize)) + (nodeEnd.y / nodeSize)] << "\n";
+		if (InsideObstacle(nodeStart.x, 0, nodeStart.y)) {
 			std::cout << "RAAAA\n";
 		}*/
 		// Set Start and goal states

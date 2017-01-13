@@ -56,11 +56,12 @@ void Agent::Start() {
 	//path = new NavMeshPath();
 }
 
-void Agent::Update(std::vector<Sign>* allSigns) {
+bool Agent::Update(std::vector<Sign>* allSigns) {
 	//clear agent´s informations
 	ClearAgent();
 
 	//update his goal
+	//update: not anymore, since his goal will be defined by the A* path
 	/*goalX = go[0]->posX;
 	goalY = go[0]->posY;
 	goalZ = go[0]->posZ;
@@ -76,7 +77,7 @@ void Agent::Update(std::vector<Sign>* allSigns) {
 	gZ = diffZ / diffMod;*/
 
 	//check interaction with possible signs
-	CheckSignsInView(allSigns);	
+	return CheckSignsInView(allSigns);	
 }
 
 //clear agent´s informations
@@ -101,7 +102,7 @@ void Agent::ClearAgent()
 }
 
 //check if there is a sign in the agent Field of View
-void Agent::CheckSignsInView(std::vector<Sign>* allSigns) {
+bool Agent::CheckSignsInView(std::vector<Sign>* allSigns) {
 	//get all signs on scene
 	//for each one of them, check the distance between it and the agent
 	bool reorder = false;
@@ -126,7 +127,10 @@ void Agent::CheckSignsInView(std::vector<Sign>* allSigns) {
 	//reorder our goals
 	if (reorder)
 	{
-		ReorderGoals();
+		return ReorderGoals();
+	}
+	else {
+		return false;
 	}
 }
 
@@ -380,8 +384,11 @@ void Agent::CheckAuxinsCell(Cell *neighbourCell, std::vector<Agent>* allAgents)
 	//if (name == "agent0") std::cout << myAuxins.size() << "\n";
 }
 
-//reorder goals/intentions
-void Agent::ReorderGoals() {
+//reorder goals/intentions. Returns bool to know if first goal has changed
+bool Agent::ReorderGoals() {
+	//store the first goal, to see if changed later
+	std::string firstGoal = go[0]->name;
+
 	for (int i = 0; i < intentions.size(); i++)
 	{
 		for (int j = i + 1; j < intentions.size(); j++)
@@ -405,6 +412,14 @@ void Agent::ReorderGoals() {
 				go[i] = tempG;
 			}
 		}
+	}
+
+	//now, we check if the first goal changed. If so, we need to re-calculate path later
+	if (go[0]->name != firstGoal) {
+		return true;
+	}
+	else {
+		return false;
 	}
 }
 

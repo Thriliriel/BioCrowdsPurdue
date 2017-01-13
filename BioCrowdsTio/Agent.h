@@ -78,9 +78,9 @@ class Agent
 		Agent(float newPosX, float newPosY, float newPosZ, std::string newName);
 		~Agent();
 		void Start();
-		void Update(std::vector<Sign>* allSigns);
+		bool Update(std::vector<Sign>* allSigns);
 		void ClearAgent();
-		void ReorderGoals();
+		bool ReorderGoals();
 		void Caminhe(float tempo);
 		void CalculaDirecaoM();
 		void CalculaVelocidade();
@@ -95,7 +95,7 @@ class Agent
 	//private methods
 	private:
 		float Distance(float x1, float y1, float z1, float x2, float y2, float z2);
-		void CheckSignsInView(std::vector<Sign>* allSigns);
+		bool CheckSignsInView(std::vector<Sign>* allSigns);
 		void Interaction(Sign *sign, float distance, int index);
 		float CalculaW(int indiceRelacao);
 		float CalculaF(int indiceRelacao);

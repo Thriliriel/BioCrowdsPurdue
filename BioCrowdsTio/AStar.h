@@ -123,7 +123,7 @@ public: // methods
 		m_State(SEARCH_STATE_NOT_INITIALISED),
 		m_CurrentSolutionNode(NULL),
 #if USE_FSA_MEMORY
-		m_FixedSizeAllocator(4700),
+		m_FixedSizeAllocator(10000),
 #endif
 		m_AllocateNodeCount(0),
 		m_CancelRequest(false)

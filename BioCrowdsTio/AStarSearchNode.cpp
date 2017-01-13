@@ -5,11 +5,12 @@ AStarSearchNode::AStarSearchNode()
 	x = y = 0;
 }
 
-AStarSearchNode::AStarSearchNode(int px, int py, float newMaxSizeX, float newMaxSizeZ, std::vector<int>* newGraphNodes) {
+AStarSearchNode::AStarSearchNode(float px, float py, float newMaxSizeX, float newMaxSizeZ, std::vector<int>* newGraphNodes, float newNodeSize) {
 	x = px; 
 	y = py; 
 	maxSizeX = newMaxSizeX;
 	maxSizeZ = newMaxSizeZ;
+	nodeSize = newNodeSize;
 
 	graphNodes = newGraphNodes;
 }
@@ -34,7 +35,7 @@ bool AStarSearchNode::IsSameState(AStarSearchNode &rhs)
 
 void AStarSearchNode::PrintNodeInfo()
 {
-	std::cout << "Node position : (" << x << "," << y << ")\n";
+	//std::cout << "Node position : (" << x << "," << y << ")\n";
 }
 
 // Here's the heuristic function that estimates the distance from a Node
@@ -62,8 +63,8 @@ bool AStarSearchNode::IsGoal(AStarSearchNode &nodeGoal)
 // is specific to the application
 bool AStarSearchNode::GetSuccessors(AStarSearch<AStarSearchNode> *astarsearch, AStarSearchNode *parent_node)
 {
-	int parent_x = -1;
-	int parent_y = -1;
+	float parent_x = -1;
+	float parent_y = -1;
 
 	if (parent_node)
 	{
@@ -74,36 +75,36 @@ bool AStarSearchNode::GetSuccessors(AStarSearch<AStarSearchNode> *astarsearch, A
 	AStarSearchNode NewNode;
 
 	// push each possible move except allowing the search to go backwards
-	if ((GetMap(x - 1, y) < 9)
-		&& !((parent_x == x - 1) && (parent_y == y))
+	if ((GetMap(x - nodeSize, y) < 9)
+		&& !((parent_x == x - nodeSize) && (parent_y == y))
 		)
 	{
-		NewNode = AStarSearchNode(x - 1, y, maxSizeX, maxSizeZ, graphNodes);
+		NewNode = AStarSearchNode(x - nodeSize, y, maxSizeX, maxSizeZ, graphNodes, nodeSize);
 		astarsearch->AddSuccessor(NewNode);
 	}
 
-	if ((GetMap(x, y - 1) < 9)
-		&& !((parent_x == x) && (parent_y == y - 1))
+	if ((GetMap(x, y - nodeSize) < 9)
+		&& !((parent_x == x) && (parent_y == y - nodeSize))
 		)
 	{
-		NewNode = AStarSearchNode(x, y - 1, maxSizeX, maxSizeZ, graphNodes);
+		NewNode = AStarSearchNode(x, y - nodeSize, maxSizeX, maxSizeZ, graphNodes, nodeSize);
 		astarsearch->AddSuccessor(NewNode);
 	}
 
-	if ((GetMap(x + 1, y) < 9)
-		&& !((parent_x == x + 1) && (parent_y == y))
+	if ((GetMap(x + nodeSize, y) < 9)
+		&& !((parent_x == x + nodeSize) && (parent_y == y))
 		)
 	{
-		NewNode = AStarSearchNode(x + 1, y, maxSizeX, maxSizeZ, graphNodes);
+		NewNode = AStarSearchNode(x + nodeSize, y, maxSizeX, maxSizeZ, graphNodes, nodeSize);
 		astarsearch->AddSuccessor(NewNode);
 	}
 
 
-	if ((GetMap(x, y + 1) < 9)
-		&& !((parent_x == x) && (parent_y == y + 1))
+	if ((GetMap(x, y + nodeSize) < 9)
+		&& !((parent_x == x) && (parent_y == y + nodeSize))
 		)
 	{
-		NewNode = AStarSearchNode(x, y + 1, maxSizeX, maxSizeZ, graphNodes);
+		NewNode = AStarSearchNode(x, y + nodeSize, maxSizeX, maxSizeZ, graphNodes, nodeSize);
 		astarsearch->AddSuccessor(NewNode);
 	}
 
@@ -118,7 +119,7 @@ float AStarSearchNode::GetCost(AStarSearchNode &successor)
 	return (float)GetMap(x, y);
 }
 
-int AStarSearchNode::GetMap(int px, int py)
+int AStarSearchNode::GetMap(float px, float py)
 {
 	if (px < 0 ||
 		px >= maxSizeX ||
@@ -130,5 +131,5 @@ int AStarSearchNode::GetMap(int px, int py)
 	}
 	//std::cout << px << " - " << py << ": " << (*graphNodes)[(px*maxSizeZ) + py] << "\n";
 	//return (*graphNodes)[(py*maxSizeX) + px];
-	return (*graphNodes)[(px*maxSizeZ) + py];
+	return (*graphNodes)[((px / nodeSize)*(maxSizeZ / nodeSize)) + (py / nodeSize)];
 }

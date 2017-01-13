@@ -42,7 +42,7 @@ Plot::Plot(std::string newWindowName, int newWindowSizeX, int newWindowSizeY, in
 	glutInit(&argcp, argv);
 	CenterOnScreen();
 	glutInitWindowSize(windowSizeX, windowSizeY);
-	glutInitWindowPosition(windowSizeX, windowSizeY);
+	glutInitWindowPosition(0, 0);
 	glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE);
 	const char* newName = windowName.c_str();
 	glutCreateWindow(newName);
@@ -51,14 +51,17 @@ Plot::Plot(std::string newWindowName, int newWindowSizeX, int newWindowSizeY, in
 	Init();
 
 	// Set the callback functions
-	glutDisplayFunc(Display);
-
-	//  Start GLUT event processing loop (just 1 iteration to not lock the code)
-	glutMainLoopEvent();
+	glutDisplayFunc(Display);	
 }
 
 Plot::~Plot()
 {
+}
+
+//call main loop
+void Plot::MainLoop() {
+	//  Start GLUT event processing loop (just 1 iteration to not lock the code)
+	glutMainLoopEvent();
 }
 
 //-------------------------------------------------------------------------

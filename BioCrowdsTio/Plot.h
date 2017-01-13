@@ -18,6 +18,7 @@ class Plot
 		Plot();
 		Plot(std::string newWindowName, int newWindowSizeX, int newWindowSizeY, int argcp, char **argv);
 		~Plot();
+		void MainLoop();
 
 	//private methods
 	private:

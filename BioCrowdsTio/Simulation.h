@@ -97,6 +97,8 @@ class Simulation
 		float obstacleScale;
 		//do we plot the scene?
 		bool plot;
+		//default node size
+		float nodeSize;
 
 		/*Signs Part*/
 		//signs array
@@ -109,6 +111,10 @@ class Simulation
 		std::vector<int> trianglesObstacle;
 		/*End Signs Part*/
 
+		//all obstacles
+		std::vector<std::vector<float>> obstaclesX;
+		std::vector<std::vector<float>> obstaclesZ;
+
 	//public methods
 	public:
 		Simulation();
@@ -119,7 +125,7 @@ class Simulation
 	//private methods
 	private:
 		void DefaultValues();
-		void StartSimulation();
+		void StartSimulation(int argcp, char **argv);
 		void EndSimulation();
 		void LoadChainSimulation();
 		void LoadConfigFile();
@@ -143,7 +149,7 @@ class Simulation
 		float RandomFloat(float min, float max);
 		bool Contains(std::vector<float> arrayToSearch, float needle);
 		bool Contains(std::vector<float> arrayToSearch, std::vector<float> arrayToSearch2, float needle, float needle2);
-		void PreCalcValues();
+		//void PreCalcValues();
 		bool InsideObstacle(float pX, float pY, float pZ);
 		void UnlockAgent(Agent* agentToUnlock);
 		void AStarPath(Agent* agentPath);
