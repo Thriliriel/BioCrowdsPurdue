@@ -24,7 +24,7 @@ Agent::Agent(float newPosX, float newPosY, float newPosZ, std::string newName) {
 	speedX = 0;
 	speedY = 0;
 	speedZ = 0;
-	fieldOfView = 5;
+	fieldOfView = 10;
 	idleTimer = 0;
 	maxIdleTimer = 50;
 }
@@ -40,12 +40,16 @@ Agent::~Agent()
 }
 
 void Agent::Start() {
-	/*goalX = go[0]->posX;
-	goalY = go[0]->posY;
-	goalZ = go[0]->posZ;*/
-	goalX = pathX[0];
-	goalY = go[0]->posY;
-	goalZ = pathZ[0];
+	if (pathX.size() == 0) {
+		goalX = go[0]->posX;
+		goalY = go[0]->posY;
+		goalZ = go[0]->posZ;
+	}
+	else {
+		goalX = pathX[0];
+		goalY = go[0]->posY;
+		goalZ = pathZ[0];
+	}
 	diffX = goalX - posX;
 	diffY = goalY - posY;
 	diffZ = goalZ - posZ;
@@ -161,6 +165,9 @@ void Agent::Interaction(Sign *sign, float distance, int index)
 //walk
 void Agent::Caminhe(float tempo)
 {
+	if (name == "agent3") {
+		bool raaa = true;
+	}
 	//std::cout << name << ": SpeedX - " << speedX << " -- SpeedZ - " << speedZ << "-- Tempo: " << tempo << "\n";
 	posX += speedX*tempo;
 	posY += speedY*tempo;

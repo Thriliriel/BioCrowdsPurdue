@@ -1,5 +1,7 @@
 #include "stdafx.h"
 
+//typedef struct { int x, y, weight; } Node;
+
 Simulation::Simulation()
 {
 	//start with default values
@@ -230,17 +232,46 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 		std::cout << signs[p].GetGoal()->name << "\n";
 	}*/
 
+	//triangulate the scene
+	std::vector<Vec2f> points;
+
+	//scenario boundaries
+	points.push_back(Vec2f(0, 0));
+	points.push_back(Vec2f(0, scenarioSizeZ));
+	points.push_back(Vec2f(scenarioSizeX, scenarioSizeZ));
+	points.push_back(Vec2f(scenarioSizeX, 0));
+
+	//add the points
+	for (int o = 0; o < obstaclesX.size(); o++) {
+		for (int q = 0; q < obstaclesX[o].size(); q++) {
+			points.push_back(Vec2f(obstaclesX[o][q], obstaclesZ[o][q]));
+		}
+	}
+
+	Delaunay triangulation;
+	std::vector<Triangle> triangles = triangulation.triangulate(points);
+
+	//calculate the mean points of each triangle
+	//here we prepare the graph
+	CalculateMeanPoints(&triangles);
+
+	//done, clear it
+	points.clear();
+	triangles.clear();
+	//end triangulate the scene
+
 	//create the graph nodes
-	for (float i = 0; i < scenarioSizeX; i = i + nodeSize) {
+	/*for (float i = 0; i < scenarioSizeX; i = i + nodeSize) {
 		for (float j = 0; j < scenarioSizeZ; j = j + nodeSize) {
 			int weight = 1;
 
 			if (InsideObstacle(i, 0, j)) {
 				weight = 9;
 			}
+
 			graphNodes.push_back(weight);
 		}
-	}
+	}*/
 
 	/*for (float i = 0; i < scenarioSizeX; i = i + nodeSize) {
 		for (float j = 0; j < scenarioSizeZ; j = j + nodeSize) {
@@ -257,7 +288,38 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 	//A* SEARCH
 	//for each agent
 	std::cout << "Generating paths...\n";
+
+	for (int i = 0; i < goals.size(); i++) {
+		//set his initial position based on the graph nodes
+		float distance = scenarioSizeX;
+		int index = -1;
+		for (int g = 0; g < graphNodesPos.size(); g++) {
+			float thisDistance = Distance(goals[i].posX, goals[i].posY, goals[i].posZ, graphNodesPos[g].x, 0, graphNodesPos[g].z);
+			if (thisDistance < distance) {
+				index = g;
+				distance = thisDistance;
+			}
+		}
+
+		if (index > -1) {
+			goals[i].posX = graphNodesPos[index].x;
+			goals[i].posZ = graphNodesPos[index].z;
+		}
+	}
+
 	for (int i = 0; i < qntAgents; i++) {
+		//set his initial position based on the graph nodes
+		/*float distance = scenarioSizeX;
+		for (int g = 0; g < graphNodesPos.size(); g++) {
+			float thisDistance = Distance(agents[i].posX, agents[i].posY, agents[i].posZ, graphNodesPos[g].x, 0, graphNodesPos[g].z);
+			if (thisDistance < distance) {
+				agents[i].posX = graphNodesPos[g].x;
+				agents[i].posZ = graphNodesPos[g].z;
+
+				distance = thisDistance;
+			}
+		}*/
+
 		AStarPath(&agents[i]);
 
 		//start default values
@@ -364,13 +426,41 @@ void Simulation::DefaultValues() {
 void Simulation::StartSimulation(int argcp, char **argv) {
 	//fps control
 	double fpsTime = 0;
-	Plot plotObject;
+
+	int screenExtraSize = 10;
 
 	//if plot..PLOT!
+	//need to create the attribute here
+	// SFML window
+	sf::RenderWindow window(sf::VideoMode(scenarioSizeX+screenExtraSize, scenarioSizeZ+screenExtraSize), "BioCrowds");
+
+	// Make the lines
+	std::vector<std::array<sf::Vertex, 2>> lines;
+
+	// Transform each points of each vector as a rectangle
+	std::vector<sf::RectangleShape*> squares;
+
+	//world lines (for plot purposes)
+	lines.push_back({ {
+			sf::Vertex(sf::Vector2f(0+(screenExtraSize/2), 0+((screenExtraSize / 2)))),
+			sf::Vertex(sf::Vector2f(0+((screenExtraSize / 2)), scenarioSizeZ+((screenExtraSize / 2))))
+		} });
+	lines.push_back({ {
+			sf::Vertex(sf::Vector2f(0+((screenExtraSize / 2)), scenarioSizeZ+((screenExtraSize / 2)))),
+			sf::Vertex(sf::Vector2f(scenarioSizeX+((screenExtraSize / 2)), scenarioSizeX+((screenExtraSize / 2))))
+		} });
+	lines.push_back({ {
+			sf::Vertex(sf::Vector2f(scenarioSizeX+((screenExtraSize / 2)), scenarioSizeZ + ((screenExtraSize / 2)))),
+			sf::Vertex(sf::Vector2f(scenarioSizeX + ((screenExtraSize / 2)), 0 + ((screenExtraSize / 2))))
+		} });
+	lines.push_back({ {
+			sf::Vertex(sf::Vector2f(scenarioSizeX + ((screenExtraSize / 2)), 0 + ((screenExtraSize / 2)))),
+			sf::Vertex(sf::Vector2f(0 + ((screenExtraSize / 2)), 0 + ((screenExtraSize / 2))))
+		} });
+
 	//NOT WORKING YET, SO KEEP IT FALSE
-	//IT USES GLU LIBRARIES, MAYBE NEED TO REMOVE IT TO RUN
-	if (plot) {
-		plotObject = Plot("BioCrowds Plot", scenarioSizeX, scenarioSizeZ, argcp, argv);
+	if (!plot) {
+		window.close();
 	}
 
 	//each time step, call again
@@ -391,9 +481,37 @@ void Simulation::StartSimulation(int argcp, char **argv) {
 
 		//update plot
 		//NOT WORKING YET, SO KEEP IT FALSE
-		//IT USES GLU LIBRARIES, MAYBE NEED TO REMOVE IT TO RUN
 		if (plot) {
-			plotObject.MainLoop();
+			if (window.isOpen()) {
+				squares.clear();
+
+				for (int a = 0; a < agents.size(); a++) {
+					sf::RectangleShape *c1 = new sf::RectangleShape(sf::Vector2f(1, 1));
+					c1->setPosition(agents[a].posX + ((screenExtraSize / 2)), agents[a].posZ + ((screenExtraSize / 2)));
+					squares.push_back(c1);
+				}
+
+				sf::Event event;
+				while (window.pollEvent(event))
+				{
+					if (event.type == sf::Event::Closed)
+						window.close();
+				}
+
+				window.clear();
+
+				// Draw the squares
+				for (auto s = begin(squares); s != end(squares); s++) {
+					window.draw(**s);
+				}
+
+				// Draw the lines
+				for (auto l = begin(lines); l != end(lines); l++) {
+					window.draw((*l).data(), 2, sf::Lines);
+				}
+
+				window.display();
+			}
 		}
 
 		//if game over, byyye
@@ -2203,7 +2321,15 @@ void Simulation::ChangeLookingFor(Goal* changeLF) {
 	//while i have an obstacle on the way
 	while (pCollider) {
 		//generate the new position
-		float x = (int)RandomFloat(0, scenarioSizeX);
+
+		//choose a new random node
+		int index = (int)RandomFloat(0, graphNodesPos.size()-1);
+		changeLF->posX = graphNodesPos[index].x;
+		changeLF->posY = 0;
+		changeLF->posZ = graphNodesPos[index].z;
+		break;
+
+		/*float x = (int)RandomFloat(0, scenarioSizeX);
 		float z = (int)RandomFloat(0, scenarioSizeZ);
 
 		//check if it is not inside an obstacle
@@ -2215,7 +2341,7 @@ void Simulation::ChangeLookingFor(Goal* changeLF) {
 			changeLF->posY = 0;
 			changeLF->posZ = z;
 			break;
-		}
+		}*/
 	}
 }
 
@@ -2405,6 +2531,29 @@ void Simulation::UnlockAgent(Agent* agentToUnlock) {
 	}
 }
 
+//calculate mean points
+void Simulation::CalculateMeanPoints(std::vector<Triangle>* triangles) {
+	for (auto &t : *triangles) {
+		float somaX = (t.p1.x + t.p2.x + t.p3.x) / 3;
+		float somaY = (t.p1.y + t.p2.y + t.p3.y) / 3;
+
+		if (!InsideObstacle(somaX, 0, somaY)) {
+			Node node;
+			node.x = somaX;
+			node.z = somaY;
+			node.v1X = t.p1.x;
+			node.v1Z = t.p1.y;
+			node.v2X = t.p2.x;
+			node.v2Z = t.p2.y;
+			node.v3X = t.p3.x;
+			node.v3Z = t.p3.y;
+
+			graphNodes.push_back(1);
+			graphNodesPos.push_back(node);
+		}
+	}
+}
+
 //A Star Search Path
 void Simulation::AStarPath(Agent* agentPath) {
 	//clear actual path
@@ -2423,12 +2572,13 @@ void Simulation::AStarPath(Agent* agentPath) {
 		// Create a start state
 		AStarSearchNode nodeStart;
 
-		nodeStart.x = (int)agentPath->posX;
-		nodeStart.y = (int)agentPath->posZ;
+		nodeStart.x = agentPath->posX;
+		nodeStart.y = agentPath->posZ;
 		nodeStart.maxSizeX = scenarioSizeX;
 		nodeStart.maxSizeZ = scenarioSizeZ;
 		nodeStart.graphNodes = &graphNodes;
 		nodeStart.nodeSize = nodeSize;
+		nodeStart.graphNodesPos = &graphNodesPos;
 
 		// Define the goal state
 		AStarSearchNode nodeEnd;
@@ -2438,6 +2588,7 @@ void Simulation::AStarPath(Agent* agentPath) {
 		nodeEnd.maxSizeZ = scenarioSizeZ;
 		nodeEnd.graphNodes = &graphNodes;
 		nodeEnd.nodeSize = nodeSize;
+		nodeEnd.graphNodesPos = &graphNodesPos;
 		/*std::cout << nodeStart.x << " -- " << nodeStart.y << "\n";
 		std::cout << nodeEnd.x << " -- " << nodeEnd.y << "\n";
 		std::cout << agentPath->go[0]->name << "\n";

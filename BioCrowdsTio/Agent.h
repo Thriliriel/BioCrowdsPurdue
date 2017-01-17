@@ -42,8 +42,8 @@ class Agent
 		//how many iterations agent can stay idle?
 		unsigned int maxIdleTimer;
 		//agent A* path
-		std::vector<int> pathX;
-		std::vector<int> pathZ;
+		std::vector<float> pathX;
+		std::vector<float> pathZ;
 
 	//private attributes
 	private:

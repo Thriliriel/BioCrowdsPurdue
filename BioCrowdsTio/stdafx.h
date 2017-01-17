@@ -7,6 +7,8 @@
 
 #include "targetver.h"
 
+typedef struct { float x, z, v1X, v1Z, v2X, v2Z, v3X, v3Z; } Node;
+
 #include <stdio.h>
 #include <string>
 #include <tchar.h>
@@ -22,7 +24,11 @@
 #include "Marker.h"
 #include "Cell.h"
 #include "Agent.h"
-#include "Plot.h"
+#include "vector2.h"
+#include "triangle.h"
+#include "delaunay.h"
 #include "AStar.h"
 #include "AStarSearchNode.h"
+#include <array>
+#include <SFML/Graphics.hpp>
 #include "Simulation.h"

@@ -42,9 +42,6 @@
     <ClInclude Include="Simulation.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Plot.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="AStar.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -52,6 +49,18 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="AStarSearchNode.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="vector2.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="edge.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="triangle.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="delaunay.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -80,14 +89,14 @@
     <ClCompile Include="Simulation.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Plot.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="AStarSearchNode.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="packages.config" />
+    <ClCompile Include="triangle.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="delaunay.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

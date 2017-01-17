@@ -88,11 +88,14 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>C:\Users\paulo\Documents\Visual Studio 2015\Projects\BioCrowdsTio\BioCrowdsTio\SFML\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <LargeAddressAware>true</LargeAddressAware>
+      <AdditionalLibraryDirectories>C:\Users\paulo\Documents\Visual Studio 2015\Projects\BioCrowdsTio\BioCrowdsTio\SFML\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>flac.lib;freetype.lib;jpeg.lib;ogg.lib;openal32.lib;sfml-audio-d.lib;sfml-audio-s-d.lib;sfml-graphics-d.lib;sfml-graphics-s-d.lib;sfml-main-d.lib;sfml-network-d.lib;sfml-network-s-d.lib;sfml-system-d.lib;sfml-system-s-d.lib;sfml-window-d.lib;sfml-window-s-d.lib;vorbis.lib;vorbisenc.lib;vorbisfile.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -102,10 +105,13 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>C:\Users\paulo\Documents\Visual Studio 2015\Projects\BioCrowdsTio\BioCrowdsTio\SFML\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>flac.lib;freetype.lib;jpeg.lib;ogg.lib;openal32.lib;sfml-audio-d.lib;sfml-audio-s-d.lib;sfml-graphics-d.lib;sfml-graphics-s-d.lib;sfml-main-d.lib;sfml-network-d.lib;sfml-network-s-d.lib;sfml-system-d.lib;sfml-system-s-d.lib;sfml-window-d.lib;sfml-window-s-d.lib;vorbis.lib;vorbisenc.lib;vorbisfile.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\Users\paulo\Documents\Visual Studio 2015\Projects\BioCrowdsTio\BioCrowdsTio\SFML\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -150,23 +156,26 @@
     <ClInclude Include="AStar.h" />
     <ClInclude Include="AStarSearchNode.h" />
     <ClInclude Include="Cell.h" />
+    <ClInclude Include="delaunay.h" />
+    <ClInclude Include="edge.h" />
     <ClInclude Include="Goal.h" />
     <ClInclude Include="fsa.h" />
     <ClInclude Include="Marker.h" />
-    <ClInclude Include="Plot.h" />
     <ClInclude Include="Sign.h" />
     <ClInclude Include="Simulation.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
+    <ClInclude Include="triangle.h" />
+    <ClInclude Include="vector2.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Agent.cpp" />
     <ClCompile Include="AStarSearchNode.cpp" />
     <ClCompile Include="BioCrowdsTio.cpp" />
     <ClCompile Include="Cell.cpp" />
+    <ClCompile Include="delaunay.cpp" />
     <ClCompile Include="Goal.cpp" />
     <ClCompile Include="Marker.cpp" />
-    <ClCompile Include="Plot.cpp" />
     <ClCompile Include="Sign.cpp" />
     <ClCompile Include="Simulation.cpp" />
     <ClCompile Include="stdafx.cpp">
@@ -175,20 +184,8 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="packages.config" />
+    <ClCompile Include="triangle.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <ImportGroup Label="ExtensionTargets">
-    <Import Project="..\packages\nupengl.core.redist.0.1.0.1\build\native\nupengl.core.redist.targets" Condition="Exists('..\packages\nupengl.core.redist.0.1.0.1\build\native\nupengl.core.redist.targets')" />
-    <Import Project="..\packages\nupengl.core.0.1.0.1\build\native\nupengl.core.targets" Condition="Exists('..\packages\nupengl.core.0.1.0.1\build\native\nupengl.core.targets')" />
-  </ImportGroup>
-  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
-    <PropertyGroup>
-      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
-    </PropertyGroup>
-    <Error Condition="!Exists('..\packages\nupengl.core.redist.0.1.0.1\build\native\nupengl.core.redist.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\nupengl.core.redist.0.1.0.1\build\native\nupengl.core.redist.targets'))" />
-    <Error Condition="!Exists('..\packages\nupengl.core.0.1.0.1\build\native\nupengl.core.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\nupengl.core.0.1.0.1\build\native\nupengl.core.targets'))" />
-  </Target>
+  <ImportGroup Label="ExtensionTargets" />
 </Project>

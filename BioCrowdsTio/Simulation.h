@@ -43,8 +43,6 @@ class Simulation
 		clock_t startTime;
 		//simulation delta time
 		double simulationTime;
-		//graph nodes for A*
-		std::vector<int> graphNodes;
 		//xml for visualisation
 		//std::string exitXml;
 		//"frame" count (Estevão said it needs to start at 24, for reasons...)
@@ -99,6 +97,9 @@ class Simulation
 		bool plot;
 		//default node size
 		float nodeSize;
+		//graph nodes for A*
+		std::vector<int> graphNodes;
+		std::vector<Node> graphNodesPos;
 
 		/*Signs Part*/
 		//signs array
@@ -153,5 +154,6 @@ class Simulation
 		bool InsideObstacle(float pX, float pY, float pZ);
 		void UnlockAgent(Agent* agentToUnlock);
 		void AStarPath(Agent* agentPath);
+		void CalculateMeanPoints(std::vector<Triangle>* triangles);
 };
 
