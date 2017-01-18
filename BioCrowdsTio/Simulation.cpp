@@ -112,10 +112,10 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 		DrawGoal("Theater", 27, 0, 17, false);
 		DrawGoal("Stadium", 5, 0, 3, false);
 		DrawGoal("AppleStore", 25, 0, 5, false);*/
-		DrawGoal("Restaurant", 50, 0, 50, false);
-		DrawGoal("Theater", 42, 0, 30, false);
-		DrawGoal("Stadium", 5, 0, 80, false);
-		DrawGoal("AppleStore", 92, 0, 16, false);
+		DrawGoal("Goal0", 50, 0, 50, false);
+		DrawGoal("Goal1", 42, 0, 30, false);
+		DrawGoal("Goal2", 5, 0, 80, false);
+		DrawGoal("Goal3", 92, 0, 16, false);
 
 		//generate all looking for states
 		GenerateLookingFor();
@@ -289,6 +289,7 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 	//for each agent
 	std::cout << "Generating paths...\n";
 
+	//goals repositioning
 	for (int i = 0; i < goals.size(); i++) {
 		//set his initial position based on the graph nodes
 		float distance = scenarioSizeX;
@@ -302,24 +303,21 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 		}
 
 		if (index > -1) {
+			//need to reposition his sign too
+			for (int s = 0; s < signs.size(); s++) {
+				if (signs[s].posX == goals[i].posX && signs[s].posZ == goals[i].posZ) {
+					signs[s].posX = graphNodesPos[index].x;
+					signs[s].posZ = graphNodesPos[index].z;
+					break;
+				}
+			}
+
 			goals[i].posX = graphNodesPos[index].x;
 			goals[i].posZ = graphNodesPos[index].z;
 		}
 	}
 
 	for (int i = 0; i < qntAgents; i++) {
-		//set his initial position based on the graph nodes
-		/*float distance = scenarioSizeX;
-		for (int g = 0; g < graphNodesPos.size(); g++) {
-			float thisDistance = Distance(agents[i].posX, agents[i].posY, agents[i].posZ, graphNodesPos[g].x, 0, graphNodesPos[g].z);
-			if (thisDistance < distance) {
-				agents[i].posX = graphNodesPos[g].x;
-				agents[i].posZ = graphNodesPos[g].z;
-
-				distance = thisDistance;
-			}
-		}*/
-
 		AStarPath(&agents[i]);
 
 		//start default values
@@ -370,7 +368,7 @@ void Simulation::DefaultValues() {
 	//save config file?
 	saveConfigFile = false;
 	//load config file?
-	loadConfigFile = false;
+	loadConfigFile = true;
 	//all simulation files directory
 	allSimulations = "Simulations/";
 	//config filename
@@ -408,8 +406,7 @@ void Simulation::DefaultValues() {
 	//start the frame count at 24
 	//frameCount = 24;
 	//do we plot the scene?
-	//@TODO: NOT WORKING YET
-	plot = false;
+	plot = true;
 	//default node size
 	nodeSize = 1;
 	//start the exit xml with the default values
@@ -427,38 +424,15 @@ void Simulation::StartSimulation(int argcp, char **argv) {
 	//fps control
 	double fpsTime = 0;
 
+	//to center at screen
 	int screenExtraSize = 10;
 
-	//if plot..PLOT!
-	//need to create the attribute here
+	//Plot preparing
+	//need to create the attribute here, to refer later
 	// SFML window
 	sf::RenderWindow window(sf::VideoMode(scenarioSizeX+screenExtraSize, scenarioSizeZ+screenExtraSize), "BioCrowds");
 
-	// Make the lines
-	std::vector<std::array<sf::Vertex, 2>> lines;
-
-	// Transform each points of each vector as a rectangle
-	std::vector<sf::RectangleShape*> squares;
-
-	//world lines (for plot purposes)
-	lines.push_back({ {
-			sf::Vertex(sf::Vector2f(0+(screenExtraSize/2), 0+((screenExtraSize / 2)))),
-			sf::Vertex(sf::Vector2f(0+((screenExtraSize / 2)), scenarioSizeZ+((screenExtraSize / 2))))
-		} });
-	lines.push_back({ {
-			sf::Vertex(sf::Vector2f(0+((screenExtraSize / 2)), scenarioSizeZ+((screenExtraSize / 2)))),
-			sf::Vertex(sf::Vector2f(scenarioSizeX+((screenExtraSize / 2)), scenarioSizeX+((screenExtraSize / 2))))
-		} });
-	lines.push_back({ {
-			sf::Vertex(sf::Vector2f(scenarioSizeX+((screenExtraSize / 2)), scenarioSizeZ + ((screenExtraSize / 2)))),
-			sf::Vertex(sf::Vector2f(scenarioSizeX + ((screenExtraSize / 2)), 0 + ((screenExtraSize / 2))))
-		} });
-	lines.push_back({ {
-			sf::Vertex(sf::Vector2f(scenarioSizeX + ((screenExtraSize / 2)), 0 + ((screenExtraSize / 2)))),
-			sf::Vertex(sf::Vector2f(0 + ((screenExtraSize / 2)), 0 + ((screenExtraSize / 2))))
-		} });
-
-	//NOT WORKING YET, SO KEEP IT FALSE
+	//if is not to plot, we close the window
 	if (!plot) {
 		window.close();
 	}
@@ -480,17 +454,84 @@ void Simulation::StartSimulation(int argcp, char **argv) {
 		Update(1);
 
 		//update plot
-		//NOT WORKING YET, SO KEEP IT FALSE
 		if (plot) {
 			if (window.isOpen()) {
-				squares.clear();
+				// Make the agents squares (white)
+				std::vector<sf::RectangleShape*> squaresAgents;
+				// Make the goals squares (green)
+				std::vector<sf::RectangleShape*> squaresGoals;
+				// Make the signs squares (blue)
+				std::vector<sf::RectangleShape*> squaresSigns;
+				// Make the world lines (white)
+				std::vector<std::array<sf::Vertex, 2>> linesWorld;
+				// Make the obstacle lines (red)
+				std::vector<std::array<sf::Vertex, 2>> linesObstacles;
 
+				//world lines
+				linesWorld.push_back({ {
+						sf::Vertex(sf::Vector2f(0 + (screenExtraSize / 2), 0 + ((screenExtraSize / 2)))),
+						sf::Vertex(sf::Vector2f(0 + ((screenExtraSize / 2)), scenarioSizeZ + ((screenExtraSize / 2))))
+					} });
+				linesWorld.push_back({ {
+						sf::Vertex(sf::Vector2f(0 + ((screenExtraSize / 2)), scenarioSizeZ + ((screenExtraSize / 2)))),
+						sf::Vertex(sf::Vector2f(scenarioSizeX + ((screenExtraSize / 2)), scenarioSizeX + ((screenExtraSize / 2))))
+					} });
+				linesWorld.push_back({ {
+						sf::Vertex(sf::Vector2f(scenarioSizeX + ((screenExtraSize / 2)), scenarioSizeZ + ((screenExtraSize / 2)))),
+						sf::Vertex(sf::Vector2f(scenarioSizeX + ((screenExtraSize / 2)), 0 + ((screenExtraSize / 2))))
+					} });
+				linesWorld.push_back({ {
+						sf::Vertex(sf::Vector2f(scenarioSizeX + ((screenExtraSize / 2)), 0 + ((screenExtraSize / 2)))),
+						sf::Vertex(sf::Vector2f(0 + ((screenExtraSize / 2)), 0 + ((screenExtraSize / 2))))
+					} });
+
+				//obstacles lines
+				for (int o = 0; o < obstaclesX.size(); o++) {
+					for (int q = 0; q < obstaclesX[o].size(); q++) {
+						int nextIndex = q + 1;
+						if (nextIndex >= obstaclesX[o].size()) {
+							nextIndex = 0;
+						}
+
+						linesObstacles.push_back({ {
+								sf::Vertex(sf::Vector2f(obstaclesX[o][q] + ((screenExtraSize / 2)), obstaclesZ[o][q] + ((screenExtraSize / 2))), sf::Color::Red),
+								sf::Vertex(sf::Vector2f(obstaclesX[o][nextIndex] + ((screenExtraSize / 2)), obstaclesZ[o][nextIndex] + ((screenExtraSize / 2))), sf::Color::Red)
+							} });
+					}
+				}
+
+				//prepare agents to draw
 				for (int a = 0; a < agents.size(); a++) {
 					sf::RectangleShape *c1 = new sf::RectangleShape(sf::Vector2f(1, 1));
 					c1->setPosition(agents[a].posX + ((screenExtraSize / 2)), agents[a].posZ + ((screenExtraSize / 2)));
-					squares.push_back(c1);
+					squaresAgents.push_back(c1);
 				}
 
+				//prepare goals to draw
+				for (int a = 0; a < goals.size(); a++) {
+					//if it is not looking for
+					if (!goals[a].isLookingFor) {
+						sf::RectangleShape *c1 = new sf::RectangleShape(sf::Vector2f(1, 1));
+						c1->setPosition(goals[a].posX + ((screenExtraSize / 2)), goals[a].posZ + ((screenExtraSize / 2)));
+						sf::Color *color = new sf::Color(0, 255, 0, 255);
+						c1->setFillColor(*color);
+						squaresGoals.push_back(c1);
+					}
+				}
+
+				//prepare signs to draw
+				for (int a = 0; a < signs.size(); a++) {
+					//if it is not a goal sign
+					if (signs[a].posX != signs[a].GetGoal()->posX && signs[a].posZ != signs[a].GetGoal()->posZ) {
+						sf::RectangleShape *c1 = new sf::RectangleShape(sf::Vector2f(1, 1));
+						c1->setPosition(signs[a].posX + ((screenExtraSize / 2)), signs[a].posZ + ((screenExtraSize / 2)));
+						sf::Color *color = new sf::Color(0, 0, 255, 255);
+						c1->setFillColor(*color);
+						squaresSigns.push_back(c1);
+					}
+				}
+
+				//start
 				sf::Event event;
 				while (window.pollEvent(event))
 				{
@@ -498,16 +539,33 @@ void Simulation::StartSimulation(int argcp, char **argv) {
 						window.close();
 				}
 
+				//clear window
 				window.clear();
 
-				// Draw the squares
-				for (auto s = begin(squares); s != end(squares); s++) {
+				//start to draw
+				// Draw the world lines
+				for (auto l = begin(linesWorld); l != end(linesWorld); l++) {
+					window.draw((*l).data(), 2, sf::Lines);
+				}
+
+				// Draw the obstacles lines
+				for (auto l = begin(linesObstacles); l != end(linesObstacles); l++) {
+					window.draw((*l).data(), 2, sf::Lines);
+				}
+
+				// Draw the agents squares
+				for (auto s = begin(squaresAgents); s != end(squaresAgents); s++) {
 					window.draw(**s);
 				}
 
-				// Draw the lines
-				for (auto l = begin(lines); l != end(lines); l++) {
-					window.draw((*l).data(), 2, sf::Lines);
+				// Draw the goals squares
+				for (auto s = begin(squaresGoals); s != end(squaresGoals); s++) {
+					window.draw(**s);
+				}
+
+				// Draw the signs squares
+				for (auto s = begin(squaresSigns); s != end(squaresSigns); s++) {
+					window.draw(**s);
 				}
 
 				window.display();
@@ -539,7 +597,7 @@ void Simulation::EndSimulation() {
 
 		//save finish time
 		std::ofstream timeFile;
-		timeFile.open("FinishTime" + std::to_string(simulationIndex) + ".txt");
+		timeFile.open(allSimulations + "/FinishTime" + std::to_string(simulationIndex) + ".txt");
 		timeFile << std::to_string((((float)clock() - startTime) / CLOCKS_PER_SEC) - lastFrameCount);
 		timeFile.close();
 
@@ -719,7 +777,7 @@ void Simulation::LoadChainSimulation() {
 
 	//save start time
 	std::ofstream timeFile;
-	timeFile.open("StartTime" + std::to_string(simulationIndex) + ".txt");
+	timeFile.open(allSimulations + "/StartTime" + std::to_string(simulationIndex) + ".txt");
 	timeFile << std::to_string((((float)clock() - startTime) / CLOCKS_PER_SEC) - lastFrameCount);
 	timeFile.close();
 
@@ -903,18 +961,13 @@ void Simulation::LoadConfigFile() {
 				float newPositionY = 0;
 				float newPositionZ = 0;
 				//define position based on obstacle vertices
-				//just have 1 obstacle
-				//@TODO: make it work again for more than 1 obstacle
-				//if (allObstacles.Length > 0) {
-				if (true) {
-					//if (allObstacles.Length == 1)
-					if (true)
+				if (obstaclesX.size() > 0) {
+					if (obstaclesX.size() == 1)
 					{
 						//check group vertices to find the corners
-						int ind = round(RandomFloat(0, verticesObstaclesX.size()-1));
-						newPositionX = verticesObstaclesX[ind];
-						//newPositionY = verticesObstaclesY[round(RandomFloat(0, verticesObstaclesY.size()) - 1)]; //y is zero
-						newPositionZ = verticesObstaclesZ[ind];
+						int ind = round(RandomFloat(0, obstaclesX[0].size()-1));
+						newPositionX = obstaclesX[0][ind];
+						newPositionZ = obstaclesZ[0][ind];
 						bool newPositionOK = true;
 
 						//check every sign
@@ -928,10 +981,9 @@ void Simulation::LoadConfigFile() {
 						//while newPosition is inside the already used positions, we try again
 						while (!newPositionOK)
 						{
-							ind = round(RandomFloat(0, verticesObstaclesX.size()-1));
-							newPositionX = verticesObstaclesX[ind];
-							//newPositionY = verticesObstaclesY[round(RandomFloat(0, verticesObstaclesY.size()) - 1)]; //y is zero
-							newPositionZ = verticesObstaclesZ[ind];
+							ind = round(RandomFloat(0, obstaclesX[0].size()-1));
+							newPositionX = obstaclesX[0][ind];
+							newPositionZ = obstaclesZ[0][ind];
 
 							newPositionOK = true;
 
@@ -944,21 +996,48 @@ void Simulation::LoadConfigFile() {
 							}
 						}
 					}
-					/*else
-					//just have 1 obstacle
+					else
 					{
-						//check group vertices to find the corners
-						newPosition = verticesObstacles[(int)Mathf.Floor(Random.Range(0, verticesObstacles.Length)) - 1];
-						//Debug.Log("Position: "+newPosition+" -- "+positionsSigns.Contains(newPosition)+"--Index: "+index);
+						//sort out an obstacle
+						int obsInd = round(RandomFloat(0, obstaclesX.size() - 1));
+						//sort out a vertice index for this obstacle
+						int ind = round(RandomFloat(0, obstaclesX[obsInd].size() - 1));
+
+						//new position
+						newPositionX = obstaclesX[0][ind];
+						newPositionZ = obstaclesZ[0][ind];
+						bool newPositionOK = true;
+
+						//check every sign
+						for (int p = 0; p < signs.size(); p++) {
+							if (signs[p].posX == newPositionX && signs[p].posZ == newPositionZ) {
+								newPositionOK = false;
+								break;
+							}
+						}
+
 						//while newPosition is inside the already used positions, we try again
-						//while (positionsSigns.Contains(newPosition))
-						//{
-						//index = (int)Mathf.Floor(Random.Range(0, allObstacles.Length));
-						//vertices = allObstacles[index].GetComponent<MeshFilter>().mesh.vertices;
-						//newPosition = vertices[(int)Mathf.Floor(Random.Range(0, vertices.Length))]; //+ new Vector3(500f, 0f, 500f)
-						//Debug.Log("While...."+"Position: " + newPosition + " -- " + positionsSigns.Contains(newPosition) + "--Index: " + index); break;
-						//}
-					}*/
+						while (!newPositionOK)
+						{
+							//sort out an obstacle
+							int obsInd = round(RandomFloat(0, obstaclesX.size() - 1));
+							//sort out a vertice index for this obstacle
+							int ind = round(RandomFloat(0, obstaclesX[obsInd].size() - 1));
+
+							//new position
+							newPositionX = obstaclesX[0][ind];
+							newPositionZ = obstaclesZ[0][ind];
+							newPositionOK = true;
+
+							//check every sign
+							for (int p = 0; p < signs.size(); p++) {
+								if (signs[p].posX == newPositionX && signs[p].posZ == newPositionZ) {
+									newPositionOK = false;
+									break;
+								}
+							}
+						}
+					}
 				}
 
 				//file sign goal
@@ -980,26 +1059,36 @@ void Simulation::LoadConfigFile() {
 	/*for (int p = 0; p < signs.size(); p++) {
 		std::cout << signs[p].GetGoal()->name << "\n";
 	}*/
+
+	if (!graphNodes.empty()) {
+		//calculate agents A* path
+		for (int i = 0; i < qntAgents; i++) {
+			AStarPath(&agents[i]);
+
+			//start default values
+			agents[i].Start();
+		}
+	}
 }
 
 //load cells and auxins and obstacles and goals (static stuff)
 //just used with loadConfigFile = true
 void Simulation::LoadCellsAuxins() {
 	//read the obstacle file
-	ReadOBJFile();
-	//DrawObstacles();
+	//ReadOBJFile();
+	DrawObstacles();
 
 	//precalc values to check obstacles
 	//PreCalcValues();
 
 	// Create a new reader, tell it which file to read
 	std::ifstream theReader;
-	theReader.open(configFilename);
 	std::string line;
+	int lineCount = 1;
+	/*theReader.open(configFilename);
 
 	int qntCells = 0;
-
-	int lineCount = 1;
+	
 	// While there's lines left in the text file, do this:
 	do
 	{
@@ -1086,8 +1175,8 @@ void Simulation::LoadCellsAuxins() {
 		lineCount++;
 	} while (line != "" && !line.empty());
 	// Done reading, close the reader and return true to broadcast success
-	theReader.close();
-	//DrawCells();
+	theReader.close();*/
+	DrawCells();
 	PlaceAuxinsAsGrid();
 
 	std::cout << "Qnt Cells: " << cells.size() << "\n";
@@ -1383,29 +1472,32 @@ void Simulation::SaveConfigFile() {
 	file.close();
 
 	//get obstacles info
-	//@TODO: JUST ONE OBSTACLE SO FAR. SEE IF IT WORKS FOR MORE THAN 1 (not necessary for Purdue)
-	if (polygonX.size() > 0)
+	if (obstaclesX.size() > 0)
 	{
 		//separated with ;
-		fileObstacles << "qntObstacles:1\n";
-		//new line for the obstacle name
-		fileObstacles << "\nObstacle\n";
-		//new line for the qnt vertices
-		fileObstacles << "qntVertices:" + std::to_string(polygonX.size()) + "\n";
+		fileObstacles << "qntObstacles:" << obstaclesX.size() << "\n";
+		
+		//for each obstacle
+		for (int o = 0; o < obstaclesX.size(); o++) {
+			//new line for the obstacle name
+			fileObstacles << "\nObstacle\n";
+			//new line for the qnt vertices
+			fileObstacles << "qntVertices:" + std::to_string(obstaclesX[o].size()) + "\n";
 
-		//for each vertice
-		for (int i = 0; i < polygonX.size(); i++)
-		{
-			fileObstacles << std::to_string(polygonX[i]) + ";0;" + std::to_string(polygonZ[i]) + "\n";
-		}
+			//for each vertice
+			for (int i = 0; i < obstaclesX[o].size(); i++)
+			{
+				fileObstacles << std::to_string(obstaclesX[o][i]) + ";0;" + std::to_string(obstaclesZ[o][i]) + "\n";
+			}
 
-		//new line for the qnt triangles
-		fileObstacles << "qntTriangles:" + std::to_string(trianglesObstacle.size()) + "\n";
+			//new line for the qnt triangles
+			fileObstacles << "qntTriangles:" + std::to_string(allTriangles[o].size()) + "\n";
 
-		//for each triangle
-		for (int i = 0; i < trianglesObstacle.size(); i++)
-		{
-			fileObstacles << std::to_string(trianglesObstacle[i]) + "\n";
+			//for each triangle
+			for (int i = 0; i < allTriangles[o].size(); i++)
+			{
+				fileObstacles << std::to_string(allTriangles[o][i]) + "\n";
+			}
 		}
 	}
 
@@ -1415,15 +1507,21 @@ void Simulation::SaveConfigFile() {
 	if (goals.size() > 0)
 	{
 		//separated with " "
-		fileGoals << std::to_string(goals.size()) + "\n";
+		std::string allGoals = "";
+		int qntGoals = 0;
+		
 		//for each goal
 		for (int i = 0; i < goals.size(); i++)
 		{
 			if (!goals[i].isLookingFor) {
 				//new line for the goal name and position
-				fileGoals << goals[i].name + " " + std::to_string(goals[i].posX) + " " + std::to_string(goals[i].posZ) + "\n";
+				allGoals += goals[i].name + " " + std::to_string(goals[i].posX) + " " + std::to_string(goals[i].posZ) + "\n";
+				qntGoals++;
 			}
 		}
+
+		fileGoals << std::to_string(qntGoals) + "\n";
+		fileGoals << allGoals;
 	}
 
 	fileGoals.close();
@@ -1619,8 +1717,8 @@ void Simulation::Update(double elapsed) {
 		//write the exit file
 		SaveExitFile();
 
-		//if there are agents no more, bye
-		if (agents.size() == 0) {
+		//if there are agents no more, and it is not loaded, bye
+		if (agents.size() == 0 && !loadConfigFile) {
 			gameOver = true;
 		}
 
@@ -1827,6 +1925,7 @@ void Simulation::DrawObstacle(std::vector<float> verticesX, std::vector<float> v
 
 	//triangles
 	trianglesObstacle = triangles;
+	allTriangles.push_back(trianglesObstacle);
 }
 
 //check group vertices to find the corners

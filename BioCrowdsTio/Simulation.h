@@ -115,6 +115,7 @@ class Simulation
 		//all obstacles
 		std::vector<std::vector<float>> obstaclesX;
 		std::vector<std::vector<float>> obstaclesZ;
+		std::vector<std::vector<int>> allTriangles;
 
 	//public methods
 	public:
