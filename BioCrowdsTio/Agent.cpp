@@ -165,9 +165,6 @@ void Agent::Interaction(Sign *sign, float distance, int index)
 //walk
 void Agent::Caminhe(float tempo)
 {
-	if (name == "agent3") {
-		bool raaa = true;
-	}
 	//std::cout << name << ": SpeedX - " << speedX << " -- SpeedZ - " << speedZ << "-- Tempo: " << tempo << "\n";
 	posX += speedX*tempo;
 	posY += speedY*tempo;
@@ -319,7 +316,10 @@ void Agent::FindNearAuxins(float cellRadius, std::vector<Cell>* allCells, std::v
 			}*/
 
 			//crazy formula to get the right index of the neighbour cell
-			int indCell = (((i - cellRadius) / (cellRadius * 2)) * (worldSizeZ / (cellRadius * 2))) + ((j - cellRadius) / (cellRadius * 2));
+			//formula x -> y
+			//int indCell = (((i - cellRadius) / (cellRadius * 2)) * (worldSizeZ / (cellRadius * 2))) + ((j - cellRadius) / (cellRadius * 2));
+			//formula y -> x
+			int indCell = (((j - cellRadius) / (cellRadius * 2)) * (worldSizeX / (cellRadius * 2))) + ((i - cellRadius) / (cellRadius * 2));
 
 			//if it exists..
 			//if (indCell >= 0)
@@ -432,9 +432,9 @@ bool Agent::ReorderGoals() {
 
 //change agent path when he arrives at his next path node
 void Agent::ChangePath() {
-	//if distance to node center is less than 0.75 (max distance to the center =~ 0,7071)
+	//if distance to node center is less than value
 	float dist = Distance(goalX, goalY, goalZ, posX, posY, posZ);
-	if (dist < 0.75f)
+	if (dist < 0.5f)
 	{
 		if (!pathX.empty()) {
 			pathX.erase(pathX.begin());

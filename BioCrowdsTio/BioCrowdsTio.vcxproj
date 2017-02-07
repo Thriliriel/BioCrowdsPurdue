@@ -105,13 +105,13 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>C:\Users\paulo\Documents\Visual Studio 2015\Projects\BioCrowdsTio\BioCrowdsTio\SFML\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(QTDIR2015)/include;C:\Users\paulo\Documents\Visual Studio 2015\Projects\BioCrowdsTio\BioCrowdsTio\SFML\include;$(QTDIR2015)\include\QtCore;$(QTDIR2015)\include\QtGui;$(QTDIR2015)\include\QtOpenGL;$(QTDIR2015)\include\QtWidgets;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>flac.lib;freetype.lib;jpeg.lib;ogg.lib;openal32.lib;sfml-audio-d.lib;sfml-audio-s-d.lib;sfml-graphics-d.lib;sfml-graphics-s-d.lib;sfml-main-d.lib;sfml-network-d.lib;sfml-network-s-d.lib;sfml-system-d.lib;sfml-system-s-d.lib;sfml-window-d.lib;sfml-window-s-d.lib;vorbis.lib;vorbisenc.lib;vorbisfile.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>C:\Users\paulo\Documents\Visual Studio 2015\Projects\BioCrowdsTio\BioCrowdsTio\SFML\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>flac.lib;freetype.lib;jpeg.lib;ogg.lib;openal32.lib;sfml-audio-d.lib;sfml-audio-s-d.lib;sfml-graphics-d.lib;sfml-graphics-s-d.lib;sfml-main-d.lib;sfml-network-d.lib;sfml-network-s-d.lib;sfml-system-d.lib;sfml-system-s-d.lib;sfml-window-d.lib;sfml-window-s-d.lib;vorbis.lib;vorbisenc.lib;vorbisfile.lib;Qt5Cored.lib;Qt5Guid.lib;Qt5OpenGLd.lib;Qt5Widgetsd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\Users\paulo\Documents\Visual Studio 2015\Projects\BioCrowdsTio\BioCrowdsTio\SFML\lib;$(QTDIR2015)\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -153,6 +153,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Agent.h" />
+    <ClInclude Include="AgentGroup.h" />
     <ClInclude Include="AStar.h" />
     <ClInclude Include="AStarSearchNode.h" />
     <ClInclude Include="Cell.h" />
@@ -170,6 +171,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Agent.cpp" />
+    <ClCompile Include="AgentGroup.cpp" />
     <ClCompile Include="AStarSearchNode.cpp" />
     <ClCompile Include="BioCrowdsTio.cpp" />
     <ClCompile Include="Cell.cpp" />

@@ -3,6 +3,16 @@
 
 #include "stdafx.h"
 
+//test function for threads
+/*void myRunFunction(QString name)
+{
+	for (int i = 0; i <= 5; i++)
+	{
+		qDebug() << name << " " << i <<
+			"from" << QThread::currentThread();
+	}
+}*/
+
 int main(int argcp, char **argv)
 {
 	srand(42);
@@ -15,5 +25,17 @@ int main(int argcp, char **argv)
 	//system("PAUSE");
 
     return 0;
+
+	/*QCoreApplication a(argcp, argv);
+	
+	QFuture<void> t1 = QtConcurrent::run(myRunFunction, QString("A"));
+	QFuture<void> t2 = QtConcurrent::run(myRunFunction, QString("B"));
+	QFuture<void> t3 = QtConcurrent::run(myRunFunction, QString("C"));
+
+	t1.waitForFinished();
+	t2.waitForFinished();
+	t3.waitForFinished();
+
+	return a.exec();*/
 }
 

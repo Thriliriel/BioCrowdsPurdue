@@ -124,7 +124,7 @@ bool AStarSearchNode::GetSuccessors(AStarSearch<AStarSearchNode> *astarsearch, A
 				distance = thisDistance;
 			}
 		}
-
+		
 		if (index2 > -1) {
 			NewNode = AStarSearchNode((*graphNodesPos)[index2].x, (*graphNodesPos)[index2].z, maxSizeX, maxSizeZ, graphNodes, nodeSize, graphNodesPos);
 			astarsearch->AddSuccessor(NewNode);

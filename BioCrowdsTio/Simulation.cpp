@@ -51,11 +51,6 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 		std::cout << "\n" << allDirs[i];
 	}*/
 
-	//Get map size        
-	spawnPositionX = (int)round(scenarioSizeX - 1);
-	//spawnPositionZ = (int)round(scenarioSizeZ - 1));//anywhere
-	spawnPositionZ = (int)round(scenarioSizeZ - (scenarioSizeZ - 2));//to make agents start near the bottom
-
 	//if loadConfigFile is checked, we do not generate the initial scenario. We load it from the Config.csv file, as well from other defined files
 	if (loadConfigFile)
 	{
@@ -83,19 +78,15 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 			std::cout << "Could not open agents goal file: " + agentsGoalFilename + "!\n";
 		}
 
-		//place the initial info in the file
-		//exitFile << exitXml;
-
 		//draw the obstacles
-		DrawObstacles();
 		//ReadOBJFile();
-
 		//check group vertices
 		CheckGroupVertices();
+
+		//new obstacles
+		DrawObstacles();
 		//std::cout << verticesObstaclesX.size() << " -- " << verticesObstaclesZ.size() << "\n";
 
-		//precalc values to check obstacles
-		//PreCalcValues();
 		//std::cout << "Qnt Obstacles: " << obstacles.size() << "\n";
 		//std::cout << "Vertice: " << obstacles[0].verticesX[0] << "\n";
 
@@ -138,18 +129,17 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 		//instantiate qntAgents Agents
 		for (int i = 0; i < qntAgents; i++)
 		{
-			//if we are not finding space to set the agent, lets update the maxZ position to try again
+			//if we are not finding space to set the agent, thats it
 			if (doNotFreeze > qntAgents) {
-				doNotFreeze = 0;
-				spawnPositionZ += 2;
+				std::cout << "There is no enough space for all agents. Agents in the scene: " << agents.size() << "\n";
 			}
 
 			//sort out a cell
 			int cellIndex = (int)round(RandomFloat(0, cells.size() - 1));
 
 			//generate the agent position
-			float x = (int)RandomFloat(cells[cellIndex].posX - cellRadius, cells[cellIndex].posX + cellRadius);
-			float z = (int)RandomFloat(cells[cellIndex].posZ - cellRadius, cells[cellIndex].posZ + cellRadius);
+			float x = RandomFloat(cells[cellIndex].posX - cellRadius, cells[cellIndex].posX + cellRadius);
+			float z = RandomFloat(cells[cellIndex].posZ - cellRadius, cells[cellIndex].posZ + cellRadius);
 
 			//see if there are agents in this radius. if not, instantiante
 			bool pCollider = false;
@@ -251,6 +241,13 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 	Delaunay triangulation;
 	std::vector<Triangle> triangles = triangulation.triangulate(points);
 
+	/*std::vector<Triangle> triangles;
+	for (int i = 0; i < allTriangles[0].size(); i = i + 3) {
+		Triangle tri(Vec2f(obstaclesX[0][allTriangles[0][i]], obstaclesZ[0][allTriangles[0][i]]), Vec2f(obstaclesX[0][allTriangles[0][i + 1]], obstaclesZ[0][allTriangles[0][i + 1]]),
+			Vec2f(obstaclesX[0][allTriangles[0][i + 2]], obstaclesZ[0][allTriangles[0][i + 2]]));
+		triangles.push_back(tri);
+	}*/
+
 	//calculate the mean points of each triangle
 	//here we prepare the graph
 	CalculateMeanPoints(&triangles);
@@ -317,6 +314,25 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 		}
 	}
 
+	//agents repositioning
+	/*for (int i = 0; i < agents.size(); i++) {
+		//set his initial position based on the graph nodes
+		float distance = scenarioSizeX;
+		int index = -1;
+		for (int g = 0; g < graphNodesPos.size(); g++) {
+			float thisDistance = Distance(agents[i].posX, agents[i].posY, agents[i].posZ, graphNodesPos[g].x, 0, graphNodesPos[g].z);
+			if (thisDistance < distance) {
+				index = g;
+				distance = thisDistance;
+			}
+		}
+
+		if (index > -1) {
+			agents[i].posX = graphNodesPos[index].x;
+			agents[i].posZ = graphNodesPos[index].z;
+		}
+	}*/
+
 	for (int i = 0; i < qntAgents; i++) {
 		AStarPath(&agents[i]);
 
@@ -359,21 +375,17 @@ void Simulation::DefaultValues() {
 	cellRadius = 1;
 	//qnt of agents in the scene
 	qntAgents = 10;
-	//qnt of signs in the scene
-	qntSigns = 0;
-	//qnt of goals in the scene
-	qntGoals = 1;
 	//radius for auxin collide
 	auxinRadius = 0.1;
 	//save config file?
 	saveConfigFile = false;
 	//load config file?
-	loadConfigFile = true;
+	loadConfigFile = false;
 	//all simulation files directory
 	allSimulations = "Simulations/";
 	//config filename
 	configFilename = allSimulations + "Config.csv";
-	//obstacles filename (probally useless since it is bringing the Tharindu´s file)
+	//obstacles filename
 	obstaclesFilename = allSimulations + "Obstacles.csv";
 	//agents and schedule filename
 	scheduleFilename = allSimulations + "sign_0/agents.dat";
@@ -382,7 +394,6 @@ void Simulation::DefaultValues() {
 	//goals filename
 	goalsFilename = allSimulations + "goals.dat";
 	//exit filename
-	//exitFilename = allSimulations + "sign_0/Exit.csv";
 	exitFilename = allSimulations + "sign_0/Exit.csv";
 	//exit agents/goal filename
 	agentsGoalFilename = allSimulations + "sign_0/AgentsGoal.csv";
@@ -409,14 +420,8 @@ void Simulation::DefaultValues() {
 	plot = true;
 	//default node size
 	nodeSize = 1;
-	//start the exit xml with the default values
-	/*exitXml = "<?xml version='1.0' ?>\n<SIMULATION Path='.'>\n";
-	exitXml += "<AGENTS Quantity='10'>\n<AGENT id='0' />\n<AGENT id='1' />\n<AGENT id='2' />\n<AGENT id='3' />\n<AGENT id='4' />\n<AGENT id='5' />\n<AGENT id='6' />\n<AGENT id='7' />\n<AGENT id='8' />\n<AGENT id='9' />\n</AGENTS>\n";
-	exitXml += "<CONTEXTS></CONTEXTS>\n";
-	exitXml += "<EVENTS>\n<EVENT Name='Teste1' Color='Red' Tag='t1'/>\n<EVENT Name='Teste2' Color='Blue' Tag='t2'/>\n<EVENT Name='Teste3' Color='FFFFAA11' Tag='t3'/>\n<EVENT Name='Teste4' Color='Yellow' Tag='t4'/>\n</EVENTS>\n";
-	exitXml += "<AMBIENT>\n<MODEL>\n<TRANSFORM>\n<TRANSLATE>0.0 0.0 0.0</TRANSLATE>\n<TRANSLATE>0.0 0.0 0.0 0.0</TRANSLATE>\n<TRANSLATE>1 1 1</TRANSLATE>\n</TRANSFORM>\n<FILE>visao/chaoModeloCCVC3.osg</FILE>\n</MODEL>\n</AMBIENT>\n";
-	exitXml += "<SKYBOX>\n<POSITIVE_X>skybox/skybox_l.jpg</POSITIVE_X>\n<NEGATIVE_X>skybox/skybox_r.jpg</NEGATIVE_X>\n<POSITIVE_Y>skybox/skybox_f.jpg</POSITIVE_Y>\n<NEGATIVE_Y>skybox/skybox_b.jpg</NEGATIVE_Y>\n<POSITIVE_Z>skybox/skybox_d.jpg</POSITIVE_Z>\n<NEGATIVE_Z>skybox/skybox_u.jpg</NEGATIVE_Z>\n</SKYBOX>\n";
-	exitXml += "<FRAMES Quantity='10000' Scale='5'>\n";*/
+	//will agents form groups?
+	groupingAgents = false;
 }
 
 //start the simulation and control the update
@@ -456,6 +461,8 @@ void Simulation::StartSimulation(int argcp, char **argv) {
 		//update plot
 		if (plot) {
 			if (window.isOpen()) {
+				// Make the markers (yellow)
+				std::vector<sf::RectangleShape*> squaresMarkers;
 				// Make the agents squares (white)
 				std::vector<sf::RectangleShape*> squaresAgents;
 				// Make the goals squares (green)
@@ -486,7 +493,7 @@ void Simulation::StartSimulation(int argcp, char **argv) {
 					} });
 
 				//obstacles lines
-				for (int o = 0; o < obstaclesX.size(); o++) {
+				/*for (int o = 0; o < obstaclesX.size(); o++) {
 					for (int q = 0; q < obstaclesX[o].size(); q++) {
 						int nextIndex = q + 1;
 						if (nextIndex >= obstaclesX[o].size()) {
@@ -498,6 +505,38 @@ void Simulation::StartSimulation(int argcp, char **argv) {
 								sf::Vertex(sf::Vector2f(obstaclesX[o][nextIndex] + ((screenExtraSize / 2)), obstaclesZ[o][nextIndex] + ((screenExtraSize / 2))), sf::Color::Red)
 							} });
 					}
+				}*/
+				for (int q = 0; q < graphNodesPos.size(); q++) {
+					linesObstacles.push_back({ {
+							sf::Vertex(sf::Vector2f(graphNodesPos[q].v1X +((screenExtraSize / 2)), graphNodesPos[q].v1Z + ((screenExtraSize / 2))), sf::Color::Red),
+							sf::Vertex(sf::Vector2f(graphNodesPos[q].v2X + ((screenExtraSize / 2)), graphNodesPos[q].v2Z + ((screenExtraSize / 2))), sf::Color::Red)
+						} });
+					linesObstacles.push_back({ {
+							sf::Vertex(sf::Vector2f(graphNodesPos[q].v2X + ((screenExtraSize / 2)), graphNodesPos[q].v2Z + ((screenExtraSize / 2))), sf::Color::Red),
+							sf::Vertex(sf::Vector2f(graphNodesPos[q].v3X + ((screenExtraSize / 2)), graphNodesPos[q].v3Z + ((screenExtraSize / 2))), sf::Color::Red)
+						} });
+					linesObstacles.push_back({ {
+							sf::Vertex(sf::Vector2f(graphNodesPos[q].v3X + ((screenExtraSize / 2)), graphNodesPos[q].v3Z + ((screenExtraSize / 2))), sf::Color::Red),
+							sf::Vertex(sf::Vector2f(graphNodesPos[q].v1X + ((screenExtraSize / 2)), graphNodesPos[q].v1Z + ((screenExtraSize / 2))), sf::Color::Red)
+						} });
+				}
+
+				//prepare markers to draw
+				/*for (int c = 0; c < cells.size(); c++) {
+					for (int a = 0; a < cells[c].myAuxins.size(); a++) {
+						sf::RectangleShape *c1 = new sf::RectangleShape(sf::Vector2f(1, 1));
+						c1->setPosition(cells[c].myAuxins[a].posX + ((screenExtraSize / 2)), cells[c].myAuxins[a].posZ + ((screenExtraSize / 2)));
+						sf::Color *color = new sf::Color(255, 255, 0, 255);
+						c1->setFillColor(*color);
+						squaresMarkers.push_back(c1);
+					}
+				}*/
+				for (int a = 0; a < graphNodesPos.size(); a++) {
+					sf::RectangleShape *c1 = new sf::RectangleShape(sf::Vector2f(1, 1));
+					c1->setPosition(graphNodesPos[a].x + ((screenExtraSize / 2)), graphNodesPos[a].z + ((screenExtraSize / 2)));
+					sf::Color *color = new sf::Color(255, 255, 0, 255);
+					c1->setFillColor(*color);
+					squaresMarkers.push_back(c1);
 				}
 
 				//prepare agents to draw
@@ -553,11 +592,16 @@ void Simulation::StartSimulation(int argcp, char **argv) {
 					window.draw((*l).data(), 2, sf::Lines);
 				}
 
+				// Draw the markers squares
+				/*for (auto s = begin(squaresMarkers); s != end(squaresMarkers); s++) {
+					window.draw(**s);
+				}*/
+
 				// Draw the agents squares
 				for (auto s = begin(squaresAgents); s != end(squaresAgents); s++) {
 					window.draw(**s);
 				}
-
+				
 				// Draw the goals squares
 				for (auto s = begin(squaresGoals); s != end(squaresGoals); s++) {
 					window.draw(**s);
@@ -585,10 +629,6 @@ void Simulation::StartSimulation(int argcp, char **argv) {
 void Simulation::EndSimulation() {
 	if (agents.size() == 0) {
 		std::cout << "Finishing Simulation " + std::to_string(simulationIndex) << "\n";
-
-		//end the exit xml
-		//exitXml += "</FRAMES>\n</SIMULATION>";
-		//exitFile << exitXml;
 
 		//close exit file
 		exitFile.close();
@@ -763,18 +803,6 @@ void Simulation::LoadChainSimulation() {
 	exitFile.open(exitFilename);
 	agentsGoalFile.open(agentsGoalFilename);
 
-	//start the exit xml with the default values
-	/*exitXml = "<?xml version='1.0' ?>\n<SIMULATION Path='.'>\n";
-	exitXml += "<AGENTS Quantity='10'>\n<AGENT id='0' />\n<AGENT id='1' />\n<AGENT id='2' />\n<AGENT id='3' />\n<AGENT id='4' />\n<AGENT id='5' />\n<AGENT id='6' />\n<AGENT id='7' />\n<AGENT id='8' />\n<AGENT id='9' />\n</AGENTS>\n";
-	exitXml += "<CONTEXTS></CONTEXTS>\n";
-	exitXml += "<EVENTS>\n<EVENT Name='Teste1' Color='Red' Tag='t1'/>\n<EVENT Name='Teste2' Color='Blue' Tag='t2'/>\n<EVENT Name='Teste3' Color='FFFFAA11' Tag='t3'/>\n<EVENT Name='Teste4' Color='Yellow' Tag='t4'/>\n</EVENTS>\n";
-	exitXml += "<AMBIENT>\n<MODEL>\n<TRANSFORM>\n<TRANSLATE>0.0 0.0 0.0</TRANSLATE>\n<TRANSLATE>0.0 0.0 0.0 0.0</TRANSLATE>\n<TRANSLATE>1 1 1</TRANSLATE>\n</TRANSFORM>\n<FILE>visao/chaoModeloCCVC3.osg</FILE>\n</MODEL>\n</AMBIENT>\n";
-	exitXml += "<SKYBOX>\n<POSITIVE_X>skybox/skybox_l.jpg</POSITIVE_X>\n<NEGATIVE_X>skybox/skybox_r.jpg</NEGATIVE_X>\n<POSITIVE_Y>skybox/skybox_f.jpg</POSITIVE_Y>\n<NEGATIVE_Y>skybox/skybox_b.jpg</NEGATIVE_Y>\n<POSITIVE_Z>skybox/skybox_d.jpg</POSITIVE_Z>\n<NEGATIVE_Z>skybox/skybox_u.jpg</NEGATIVE_Z>\n</SKYBOX>\n";
-	exitXml += "<FRAMES Quantity='10000' Scale='5'>\n";
-
-	//place the initial info in the file
-	exitFile << exitXml;*/
-
 	//save start time
 	std::ofstream timeFile;
 	timeFile.open(allSimulations + "/StartTime" + std::to_string(simulationIndex) + ".txt");
@@ -946,11 +974,7 @@ void Simulation::LoadConfigFile() {
 		if (line != "" && !line.empty())
 		{
 			//in first line, it is the qnt signs
-			if (lineCount == 1)
-			{
-				qntSigns = std::stoi(line);
-			}
-			else
+			if (lineCount > 1)
 			{
 				//each line 1 agent, separated by " "
 				std::vector<std::string> entries;
@@ -1075,17 +1099,14 @@ void Simulation::LoadConfigFile() {
 //just used with loadConfigFile = true
 void Simulation::LoadCellsAuxins() {
 	//read the obstacle file
-	//ReadOBJFile();
-	DrawObstacles();
-
-	//precalc values to check obstacles
-	//PreCalcValues();
+	ReadOBJFile();
+	//DrawObstacles();
 
 	// Create a new reader, tell it which file to read
 	std::ifstream theReader;
 	std::string line;
 	int lineCount = 1;
-	/*theReader.open(configFilename);
+	theReader.open(configFilename);
 
 	int qntCells = 0;
 	
@@ -1175,9 +1196,9 @@ void Simulation::LoadCellsAuxins() {
 		lineCount++;
 	} while (line != "" && !line.empty());
 	// Done reading, close the reader and return true to broadcast success
-	theReader.close();*/
-	DrawCells();
-	PlaceAuxinsAsGrid();
+	theReader.close();
+	//DrawCells();
+	//PlaceAuxinsAsGrid();
 
 	std::cout << "Qnt Cells: " << cells.size() << "\n";
 
@@ -1197,11 +1218,7 @@ void Simulation::LoadCellsAuxins() {
 		if (line != "" && !line.empty())
 		{
 			//in first line, it is the qnt goals
-			if (lineCount == 1)
-			{
-				qntGoals = std::stoi(line);
-			}
-			else
+			if (lineCount > 1)
 			{
 				//each line 1 agent, separated by " "
 				std::vector<std::string> entries;
@@ -1259,17 +1276,18 @@ void Simulation::DrawCells()
 	float newPositionY = 0;
 	float newPositionZ = cellRadius;
 
-	for (float i = 0; i < scenarioSizeX; i = i + cellRadius * 2)
+	for (float j = 0; j < scenarioSizeZ; j = j + cellRadius * 2)
 	{
-		for (float j = 0; j < scenarioSizeZ; j = j + cellRadius * 2)
+		for (float i = 0; i < scenarioSizeX; i = i + cellRadius * 2)
 		{
 			//verify if collides with some obstacle. We dont need cells in objects.
 			//for that, we need to check all 4 sides of the cell. Otherwise, we may not have cells in some free spaces (for example, half of a cell would be covered by an obstacle, so that cell
 			//would not be instantied)
-			bool collideRight = InsideObstacle(newPositionX + i + cellRadius, newPositionY, newPositionZ + j + cellRadius);
+			//UPDATE: WE ALWAYS CREATE THE CELL, SO WE CAN EASILY FIND THE NEIGHBOR CELLS LATER
+			/*bool collideRight = InsideObstacle(newPositionX + i + cellRadius, newPositionY, newPositionZ + j + cellRadius);
 			bool collideLeft = InsideObstacle(newPositionX + i - cellRadius, newPositionY, newPositionZ + j + cellRadius);
 			bool collideTop = InsideObstacle(newPositionX + i + cellRadius, newPositionY, newPositionZ + j - cellRadius);
-			bool collideDown = InsideObstacle(newPositionX + i - cellRadius, newPositionY, newPositionZ + j - cellRadius);
+			bool collideDown = InsideObstacle(newPositionX + i - cellRadius, newPositionY, newPositionZ + j - cellRadius);*/
 
 			//if did collide it all, means we have found at least 1 obstacle in each case. So, the cell is covered by an obstacle
 			//otherwise, we go on
@@ -1763,6 +1781,51 @@ void Simulation::SaveAgentsGoalFile(std::string agentName, std::string goalName)
 
 //"draw" obstacles on the scene
 void Simulation::DrawObstacles() {
+	obstaclesX.clear();
+	obstaclesZ.clear();
+	allTriangles.clear();
+	
+	/*for (int i = 0; i < verticesObstaclesX.size(); i = i + 4) {
+		std::vector<float> verticesX;
+		std::vector<float> verticesY;
+		std::vector<float> verticesZ;
+		std::vector<int> triangles;
+
+		//set vertices
+		//vertice 1
+		verticesX.push_back(verticesObstaclesX[i]);
+		verticesY.push_back(0.0f);
+		verticesZ.push_back(verticesObstaclesZ[i]);
+		//vertice 2
+		verticesX.push_back(verticesObstaclesX[i+1]);
+		verticesY.push_back(0.0f);
+		verticesZ.push_back(verticesObstaclesZ[i+1]);
+		//vertice 3
+		verticesX.push_back(verticesObstaclesX[i+2]);
+		verticesY.push_back(0.0f);
+		verticesZ.push_back(verticesObstaclesZ[i+2]);
+		if (i + 3 < verticesObstaclesX.size()) {
+			//vertice 4
+			verticesX.push_back(verticesObstaclesX[i + 3]);
+			verticesY.push_back(0.0f);
+			verticesZ.push_back(verticesObstaclesZ[i + 3]);
+		}
+
+		//triangles
+
+		triangles.push_back(0);
+		triangles.push_back(1);
+		triangles.push_back(2);
+		if (i + 3 < verticesObstaclesX.size()) {
+			triangles.push_back(2);
+			triangles.push_back(3);
+			triangles.push_back(0);
+		}
+
+		//"draw" it
+		DrawObstacle(verticesX, verticesY, verticesZ, triangles);
+	}*/
+
 	//draw rectangle 1
 	std::vector<float> verticesX;
 	std::vector<float> verticesY;
@@ -1910,12 +1973,13 @@ void Simulation::DrawObstacles() {
 
 //draw each obstacle, placing its vertices on the verticesObstacles. So, signs can be instantiated on those places
 void Simulation::DrawObstacle(std::vector<float> verticesX, std::vector<float> verticesY, std::vector<float> verticesZ, std::vector<int> triangles) {
-	polygonX.clear();
-	polygonZ.clear();
+	//X vertices
+	std::vector<float> polygonX;
+	//Z vertices
+	std::vector<float> polygonZ;
 
 	for (int i = 0; i < verticesX.size(); i++) {
 		//polygon for InsideObstacle calculus
-		//@TODO: CHECK IF IT WORKS FOR 2 OR MORE OBSTACLES!! (not necessary for Purdue) -- SEEMS LIKE IT DOES NOT WORK!
 		polygonX.push_back(verticesX[i]);
 		polygonZ.push_back(verticesZ[i]);
 	}
@@ -1924,14 +1988,15 @@ void Simulation::DrawObstacle(std::vector<float> verticesX, std::vector<float> v
 	obstaclesZ.push_back(polygonZ);
 
 	//triangles
-	trianglesObstacle = triangles;
-	allTriangles.push_back(trianglesObstacle);
+	allTriangles.push_back(triangles);
 }
 
 //check group vertices to find the corners
 //@TODO: JUST WORKS FOR 1 OBSTACLE! NEED TO SEE IF CAN DO FOR 2 OR MORE (not necessary for Purdue)
+//just work for 1 obstacle, so, deprecated
 void Simulation::CheckGroupVertices()
 {
+	/*
 	std::vector<int> groupTriangles;
 	//start each index with 0
 	for (int i = 0; i < trianglesObstacle.size(); i++) {
@@ -2304,6 +2369,39 @@ void Simulation::CheckGroupVertices()
 			}
 		}
 
+		//reorder for x
+		for (int i = 0; i < fourVerticesX.size()-1; i++) {
+			if (fourVerticesX[i] > fourVerticesX[i + 1]) {
+				float temp = fourVerticesX[i];
+				fourVerticesX[i] = fourVerticesX[i + 1];
+				fourVerticesX[i + 1] = temp;
+
+				temp = fourVerticesZ[i];
+				fourVerticesZ[i] = fourVerticesZ[i + 1];
+				fourVerticesZ[i + 1] = temp;
+
+				i = 0;
+			}
+		}
+
+		//now, invert a y
+		//index 2 get 3, 3 get 4 and 4 get 2
+		if (fourVerticesX.size() == 4) {
+			float temp2 = fourVerticesX[1];
+			float temp3 = fourVerticesX[2];
+			float temp4 = fourVerticesX[3];
+			fourVerticesX[1] = temp3;
+			fourVerticesX[2] = temp4;
+			fourVerticesX[3] = temp2;
+
+			temp2 = fourVerticesZ[1];
+			temp3 = fourVerticesZ[2];
+			temp4 = fourVerticesZ[3];
+			fourVerticesZ[1] = temp3;
+			fourVerticesZ[2] = temp4;
+			fourVerticesZ[3] = temp2;
+		}
+
 		//now, assign the values
 		for (int i = 0; i < fourVerticesX.size(); i++) {
 			newVerticesX.push_back(fourVerticesX[i]);
@@ -2320,13 +2418,14 @@ void Simulation::CheckGroupVertices()
 	verticesObstaclesX = newVerticesX;
 	verticesObstaclesY = newVerticesY;
 	verticesObstaclesZ = newVerticesZ;
+	*/
 }
 
 //READ THE 4X4.OBJ
 void Simulation::ReadOBJFile()
 {
 	std::ifstream theReader;
-	theReader.open(allSimulations + "/StreetBlock.obj");
+	theReader.open(obstaclesFilename);
 	std::string line;
 	int qntVertices = 0;
 	int qntTriangles = 0;
@@ -2399,8 +2498,8 @@ void Simulation::GenerateLookingFor() {
 		//while i have an obstacle on the way
 		while (pCollider) {
 			//generate the new position
-			float x = (int)RandomFloat(0, scenarioSizeX);
-			float z = (int)RandomFloat(0, scenarioSizeZ);
+			float x = RandomFloat(0, scenarioSizeX);
+			float z = RandomFloat(0, scenarioSizeZ);
 
 			//check if it is not inside an obstacle
 			bool pCollider = InsideObstacle(x, 0, z);
@@ -2513,8 +2612,7 @@ bool Simulation::Contains(std::vector<float> arrayToSearch, std::vector<float> a
 //  desired.)
 //
 //  USAGE:
-//  Call precalc_values() to initialize the constant[] and multiple[] arrays,
-//  then call pointInPolygon(x, y) to determine if the point is in the polygon.
+//  Call InsideObstacle(x, y, z) to determine if the point is in the polygon.
 //
 //  The function will return YES if the point x,y is inside the polygon, or
 //  NO if it is not.  If the point is exactly on the edge of the polygon,
@@ -2522,26 +2620,6 @@ bool Simulation::Contains(std::vector<float> arrayToSearch, std::vector<float> a
 //
 //  Note that division by zero is avoided because the division is protected
 //  by the "if" clause which surrounds it.
-
-//maybe necessary later, stay here son
-/*void Simulation::PreCalcValues() {
-	int   i, j = polygonX.size() - 1;
-
-	for (i = 0; i < polygonX.size(); i++) {
-		if (polygonZ[j] == polygonZ[i]) {
-			constant.push_back(polygonX[i]);
-			multiple.push_back(0);
-		}
-		else {
-			constant.push_back(polygonX[i] - (polygonZ[i] * polygonX[j]) / (polygonZ[j] - polygonZ[i]) + (polygonZ[i] * polygonX[i]) /
-				(polygonZ[j] - polygonZ[i]));
-			multiple.push_back((polygonX[j] - polygonX[i]) / (polygonZ[j] - polygonZ[i]));
-		}
-		j = i;
-	}
-}*/
-
-//THIS ONE DOES NOT NEED THE PRECALCVALUES() AND CHECK ALL OBSTACLES IN THE SCENE
 bool Simulation::InsideObstacle(float pX, float pY, float pZ) {
 	bool  oddNodes = false;
 
@@ -2564,20 +2642,44 @@ bool Simulation::InsideObstacle(float pX, float pY, float pZ) {
 	return oddNodes;
 }
 
-//maybe necessary later, stay here son
-/*bool Simulation::InsideObstacle(float pX, float pY, float pZ) {
-	int   i, j = polygonX.size() - 1;
-	bool  oddNodes = false;
+//new version based on the triangles
+//finds out if a point is inside a triangle
+/*bool PointInTriangle(Vec2f p, Vec2f p0, Vec2f p1, Vec2f p2)
+{
+	float s = p0.y * p2.x - p0.x * p2.y + (p2.y - p0.y) * p.x + (p0.x - p2.x) * p.y;
+	float t = p0.x * p1.y - p0.y * p1.x + (p0.y - p1.y) * p.x + (p1.x - p0.x) * p.y;
 
-	for (i = 0; i < polygonX.size(); i++) {
-		if ((polygonZ[i] < pZ && polygonZ[j] >= pZ
-			|| polygonZ[j] < pZ && polygonZ[i] >= pZ)) {
-			oddNodes ^= (pZ*multiple[i] + constant[i] < pX);
+	if ((s < 0) != (t < 0))
+		return false;
+
+	float A = -p1.y * p2.x + p0.y * (p2.x - p1.x) + p0.x * (p1.y - p2.y) + p1.x * p2.y;
+	if (A < 0.0)
+	{
+		s = -s;
+		t = -t;
+		A = -A;
+	}
+	return s > 0 && t > 0 && (s + t) <= A;
+}
+
+bool Simulation::InsideObstacle(float pX, float pY, float pZ) {
+	//foreach triangle, check if the point is inside it or not
+	int qntInside = 0;
+	for (int i = 0; i < allTriangles[0].size(); i = i + 3) {
+		if (PointInTriangle(Vec2f(pX, pZ), Vec2f(obstaclesX[0][allTriangles[0][i]], obstaclesZ[0][allTriangles[0][i]]), Vec2f(obstaclesX[0][allTriangles[0][i + 1]], obstaclesZ[0][allTriangles[0][i + 1]]),
+			Vec2f(obstaclesX[0][allTriangles[0][i + 2]], obstaclesZ[0][allTriangles[0][i + 2]]))) {
+			qntInside++;
 		}
-		j = i;
 	}
 
-	return oddNodes;
+	//if reading the blocks file, return true else false
+	//if reading the roads file, return false else true
+	if (qntInside > 0) {
+		return true;
+	}
+	else {
+		return false;
+	}
 }*/
 
 //unlock agent if he stops because an obstacle
@@ -2624,6 +2726,12 @@ void Simulation::UnlockAgent(Agent* agentToUnlock) {
 
 			//need to recalculate path
 			AStarPath(agentToUnlock);
+
+			//his next goal
+			if (agentToUnlock->pathX.size() > 0) {
+				agentToUnlock->goalX = agentToUnlock->pathX[0];
+				agentToUnlock->goalZ = agentToUnlock->pathZ[0];
+			}
 
 			break;
 		}
@@ -2742,6 +2850,7 @@ void Simulation::AStarPath(Agent* agentPath) {
 		else if (SearchState == AStarSearch<AStarSearchNode>::SEARCH_STATE_FAILED)
 		{
 			cout << "Search terminated. Did not find goal state\n";
+			cout << "SearchSteps : " << SearchSteps << "\n";
 		}
 
 		// Display the number of loops the search went through

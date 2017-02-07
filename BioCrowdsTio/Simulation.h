@@ -13,10 +13,6 @@ class Simulation
 		float cellRadius;
 		//qnt of agents in the scene
 		int qntAgents;
-		//qnt of signs in the scene (PROBALLY USELESS SO FAR)
-		int qntSigns;
-		//qnt of goals in the scene (PROBALLY USELESS SO FAR)
-		int qntGoals;
 		//radius for auxin collide
 		float auxinRadius;
 		//save config file?
@@ -43,17 +39,9 @@ class Simulation
 		clock_t startTime;
 		//simulation delta time
 		double simulationTime;
-		//xml for visualisation
-		//std::string exitXml;
-		//"frame" count (Estevão said it needs to start at 24, for reasons...)
-		//unsigned int frameCount;
 
 	//private attributes
 	private:
-		//max agent spawn x
-		int spawnPositionX;
-		//max agent spawn z
-		int spawnPositionZ;
 		//auxins density
 		float PORC_QTD_Marcacoes;
 		//qnt of auxins on the ground
@@ -80,37 +68,24 @@ class Simulation
 		float intentionThreshold;
 		//Simulation time step
 		int fps;
-		//all obstacles vertices
-		//X vertices
-		std::vector<float> polygonX;
-		//Z vertices
-		std::vector<float> polygonZ;
-		//constant for InsideObstacle calculus
-		std::vector<float> constant;
-		//multiple for InsideObstacle calculus
-		std::vector<float> multiple;
 		//how much is the obstacle far away from the world origin
 		float obstacleDisplacement;
 		//what is the obstacle scale
 		float obstacleScale;
 		//do we plot the scene?
 		bool plot;
+		//draw scale
+		int drawScale;
 		//default node size
 		float nodeSize;
 		//graph nodes for A*
 		std::vector<int> graphNodes;
+		//since we are using the triangles as our path, need to know their positions
 		std::vector<Node> graphNodesPos;
-
-		/*Signs Part*/
 		//signs array
 		std::vector<Sign> signs;
-		//obstacle corners
-		std::vector<float> verticesObstaclesX;
-		std::vector<float> verticesObstaclesY;
-		std::vector<float> verticesObstaclesZ;
-		//just for 1 obstacle so far
-		std::vector<int> trianglesObstacle;
-		/*End Signs Part*/
+		//will agents form groups?
+		bool groupingAgents;
 
 		//all obstacles
 		std::vector<std::vector<float>> obstaclesX;
@@ -151,7 +126,6 @@ class Simulation
 		float RandomFloat(float min, float max);
 		bool Contains(std::vector<float> arrayToSearch, float needle);
 		bool Contains(std::vector<float> arrayToSearch, std::vector<float> arrayToSearch2, float needle, float needle2);
-		//void PreCalcValues();
 		bool InsideObstacle(float pX, float pY, float pZ);
 		void UnlockAgent(Agent* agentToUnlock);
 		void AStarPath(Agent* agentPath);

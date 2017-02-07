@@ -7,6 +7,14 @@
 
 #include "targetver.h"
 
+//threads @TODO
+/*#include <QDebug>
+#include <QThread>
+#include <QString>
+#include <QtConcurrent/qtconcurrentrun.h>
+#include <QApplication>*/
+
+//node struct - position x, position z, triangle vertices position
 typedef struct { float x, z, v1X, v1Z, v2X, v2Z, v3X, v3Z; } Node;
 
 #include <stdio.h>
@@ -24,6 +32,7 @@ typedef struct { float x, z, v1X, v1Z, v2X, v2Z, v3X, v3Z; } Node;
 #include "Marker.h"
 #include "Cell.h"
 #include "Agent.h"
+#include "AgentGroup.h"
 #include "vector2.h"
 #include "triangle.h"
 #include "delaunay.h"
