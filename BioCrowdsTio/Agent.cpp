@@ -40,16 +40,6 @@ Agent::~Agent()
 }
 
 void Agent::Start() {
-	if (pathX.size() == 0) {
-		goalX = go[0]->posX;
-		goalY = go[0]->posY;
-		goalZ = go[0]->posZ;
-	}
-	else {
-		goalX = pathX[0];
-		goalY = go[0]->posY;
-		goalZ = pathZ[0];
-	}
 	diffX = goalX - posX;
 	diffY = goalY - posY;
 	diffZ = goalZ - posZ;
@@ -60,28 +50,9 @@ void Agent::Start() {
 	//path = new NavMeshPath();
 }
 
-bool Agent::Update(std::vector<Sign>* allSigns) {
+void Agent::Update(std::vector<Sign>* allSigns) {
 	//clear agent´s informations
 	ClearAgent();
-
-	//update his goal
-	//update: not anymore, since his goal will be defined by the A* path
-	/*goalX = go[0]->posX;
-	goalY = go[0]->posY;
-	goalZ = go[0]->posZ;
-	goalX = pathX[0];
-	goalY = go[0]->posY;
-	goalZ = pathZ[0];
-	diffX = goalX - posX;
-	diffY = goalY - posY;
-	diffZ = goalZ - posZ;
-	diffMod = Distance(diffX, diffY, diffZ, 0, 0, 0);
-	gX = diffX / diffMod;
-	gY = diffY / diffMod;
-	gZ = diffZ / diffMod;*/
-
-	//check interaction with possible signs
-	return CheckSignsInView(allSigns);	
 }
 
 //clear agent´s informations
@@ -103,63 +74,6 @@ void Agent::ClearAgent()
 	gZ = diffZ / diffMod;
 
 	changePosition = true;
-}
-
-//check if there is a sign in the agent Field of View
-bool Agent::CheckSignsInView(std::vector<Sign>* allSigns) {
-	//get all signs on scene
-	//for each one of them, check the distance between it and the agent
-	bool reorder = false;
-	for(int s = 0; s < allSigns->size(); s++){
-		float distance = Distance(posX, posY, posZ, (*allSigns)[s].posX, (*allSigns)[s].posY, (*allSigns)[s].posZ);
-		//if distance <= agent field of view, the sign may affect the agent
-		if (distance <= fieldOfView)
-		{
-			//now, lets see if this sign is from a goal that our agent has intention to go
-			for (int i = 0; i < go.size(); i++)
-			{
-				if (go[i]->name == (*allSigns)[s].GetGoal()->name) {
-					//well, lets do the interaction
-					Interaction(&(*allSigns)[s], distance, i);
-					reorder = true;
-					break;
-				}
-			}
-		}
-	}
-
-	//reorder our goals
-	if (reorder)
-	{
-		return ReorderGoals();
-	}
-	else {
-		return false;
-	}
-}
-
-//make the interaction between the agent and the signs he can see
-void Agent::Interaction(Sign *sign, float distance, int index)
-{
-	float deltaIntention;
-
-	//alfa -> interaction environment
-	float alfa;
-	alfa = 1.0f / distance;
-	if (alfa > 1)
-		alfa = 1;
-
-	// From the model in Bosse et al 2014 limited for 2 agents
-	//float Sq = (intentions[index]);
-	//sign intention will be always 1
-	float Sq = 1;
-
-	float gama = desire[index] * alfa * sign->GetAppeal();
-
-	deltaIntention = gama * (Sq - intentions[index]);
-
-	intentions[index] = intentions[index] + deltaIntention;
-	//std::cout << name << " com sign " << sign->GetGoal()->name << ": " << std::to_string(deltaIntention) << "\n"; system("PAUSE");
 }
 
 //walk
@@ -391,71 +305,6 @@ void Agent::CheckAuxinsCell(Cell *neighbourCell, std::vector<Agent>* allAgents)
 	//if (name == "agent0") std::cout << myAuxins.size() << "\n";
 }
 
-//reorder goals/intentions. Returns bool to know if first goal has changed
-bool Agent::ReorderGoals() {
-	//store the first goal, to see if changed later
-	std::string firstGoal = go[0]->name;
-
-	for (int i = 0; i < intentions.size(); i++)
-	{
-		for (int j = i + 1; j < intentions.size(); j++)
-		{
-			//if j element is bigger, change
-			if (intentions[i] < intentions[j])
-			{
-				//reorder intentions
-				float temp = intentions[j];
-				intentions[j] = intentions[i];
-				intentions[i] = temp;
-
-				//reorder desires
-				float tempD = desire[j];
-				desire[j] = desire[i];
-				desire[i] = tempD;
-
-				//reorder goals
-				Goal *tempG = go[j];
-				go[j] = go[i];
-				go[i] = tempG;
-			}
-		}
-	}
-
-	//now, we check if the first goal changed. If so, we need to re-calculate path later
-	if (go[0]->name != firstGoal) {
-		return true;
-	}
-	else {
-		return false;
-	}
-}
-
-//change agent path when he arrives at his next path node
-void Agent::ChangePath() {
-	//if distance to node center is less than value
-	float dist = Distance(goalX, goalY, goalZ, posX, posY, posZ);
-	if (dist < 0.5f)
-	{
-		if (!pathX.empty()) {
-			pathX.erase(pathX.begin());
-			pathZ.erase(pathZ.begin());
-		}
-
-		//update
-		//if it is empty, already at last node. So, set the actual goal
-		if (pathX.empty()) {
-			goalX = go[0]->posX;
-			goalY = go[0]->posY;
-			goalZ = go[0]->posZ;
-		}//else, next node
-		else {
-			goalX = pathX[0];
-			goalY = go[0]->posY;
-			goalZ = pathZ[0];
-		}
-	}
-}
-
 //GET-SET
 Cell* Agent::GetCell()
 {
@@ -475,17 +324,6 @@ void Agent::AddAuxin(Marker *newAuxin)
 std::vector<Marker*> Agent::GetAuxins()
 {
 	return myAuxins;
-}
-
-//add a new desire on desire
-void Agent::AddDesire(float newDesire)
-{
-	desire.push_back(newDesire);
-}
-//remove a desire on desire
-void Agent::RemoveDesire(int index)
-{
-	desire.erase(desire.begin() + index);
 }
 //distance between 2 points
 float Agent::Distance(float x1, float y1, float z1, float x2, float y2, float z2)

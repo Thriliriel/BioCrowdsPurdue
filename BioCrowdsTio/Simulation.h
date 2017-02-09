@@ -57,7 +57,9 @@ class Simulation
 		//stop all sims
 		bool gameOver;
 		//agents array
-		std::vector<Agent> agents;
+		//now, we have groups of agents. So, need to have te groups array with agents inside it
+		//std::vector<Agent> agents;
+		std::vector<AgentGroup> agentsGroups;
 		//cells array
 		std::vector<Cell> cells;
 		//goals array
@@ -84,8 +86,8 @@ class Simulation
 		std::vector<Node> graphNodesPos;
 		//signs array
 		std::vector<Sign> signs;
-		//will agents form groups?
-		bool groupingAgents;
+		//quantity of groups that agents will form. If it is zero, means no groups will be used (like groups = false), therefore, each agent will be alone in a group
+		int qntGroups;
 
 		//all obstacles
 		std::vector<std::vector<float>> obstaclesX;
@@ -128,7 +130,7 @@ class Simulation
 		bool Contains(std::vector<float> arrayToSearch, std::vector<float> arrayToSearch2, float needle, float needle2);
 		bool InsideObstacle(float pX, float pY, float pZ);
 		void UnlockAgent(Agent* agentToUnlock);
-		void AStarPath(Agent* agentPath);
+		void AStarPath(AgentGroup* agentPath);
 		void CalculateMeanPoints(std::vector<Triangle>* triangles);
 };
 

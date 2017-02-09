@@ -124,27 +124,102 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 
 		//std::cout << goals.size() << " -- " << signs.size();
 
+		//first, start the groups
+		//for default, has no groups (1 agent per group)
+		int qntGroupAgents = qntAgents;
+		//if qntgroups is higher than zero, and lower than qntAgents, we start this qnt of groups
+		if (qntGroups > 0 && qntGroups < qntAgents) {
+			qntGroupAgents = qntGroups;
+		}
+		for (int i = 0; i < qntGroupAgents; i++)
+		{
+			//sort out a cell
+			int cellIndex = (int)round(RandomFloat(0, cells.size() - 0.1f));
+			float x;
+			float z;
+			bool pCollider = true;
+			int tries = 0;
+
+			while (pCollider) {
+				if (tries > 50) {
+					//sort out a new cell
+					cellIndex = (int)round(RandomFloat(0, cells.size() - 0.1f));
+					tries = 0;
+				}
+				//generate the group position
+				x = RandomFloat(cells[cellIndex].posX - cellRadius, cells[cellIndex].posX + cellRadius);
+				z = RandomFloat(cells[cellIndex].posZ - cellRadius, cells[cellIndex].posZ + cellRadius);
+				pCollider = InsideObstacle(x, 0, z);
+				if (pCollider) {
+					tries++;
+				}
+			}
+			Vector3 newPosition;
+			newPosition.x = x;
+			newPosition.y = 0;
+			newPosition.z = z;
+
+			AgentGroup newAgentGroup(newPosition, &cells[cellIndex], 0.5f * (i + 1) * (i + 1));
+
+			//agent group goals
+			for (int j = 0; j < goals.size(); j++)
+			{
+				//if goal is not looking for...
+				if (!goals[j].isLookingFor) {
+					//add a goal
+					newAgentGroup.go.push_back(&goals[j]);
+					//add a random intention
+					newAgentGroup.intentions.push_back(RandomFloat(0, (intentionThreshold - 0.01)));
+					//add a random desire
+					newAgentGroup.desire.push_back(RandomFloat(0, 1));
+				}
+			}
+
+			//get the first non taken looking for state
+			for (int j = 0; j < goals.size(); j++)
+			{
+				//if goal is looking for and is free...
+				if (goals[j].isLookingFor && !goals[j].isTaken) {
+					//add a goal
+					newAgentGroup.go.push_back(&goals[j]);
+					//add intention 0.8
+					newAgentGroup.intentions.push_back(0.8);
+					//add desire 1
+					newAgentGroup.desire.push_back(1);
+					//this looking for goal is taken now
+					goals[j].isTaken = true;
+					//already have one, get out!
+					break;
+				}
+			}
+
+			//reorder following intentions
+			newAgentGroup.ReorderGoals();
+
+			agentsGroups.push_back(newAgentGroup);
+		}
+
 		//to avoid a freeze
 		int doNotFreeze = 0;
 		//instantiate qntAgents Agents
 		for (int i = 0; i < qntAgents; i++)
 		{
+			//sort out a group for this agent
+			int groupIndex = (int)RandomFloat(0, agentsGroups.size() - 0.128f);
+
 			//if we are not finding space to set the agent, thats it
 			if (doNotFreeze > qntAgents) {
-				std::cout << "There is no enough space for all agents. Agents in the scene: " << agents.size() << "\n";
+				std::cout << "There is no enough space for all agents.\n";
 			}
 
-			//sort out a cell
-			int cellIndex = (int)round(RandomFloat(0, cells.size() - 1));
-
 			//generate the agent position
-			float x = RandomFloat(cells[cellIndex].posX - cellRadius, cells[cellIndex].posX + cellRadius);
-			float z = RandomFloat(cells[cellIndex].posZ - cellRadius, cells[cellIndex].posZ + cellRadius);
+			float x = RandomFloat(agentsGroups[groupIndex].position.x - 0.5f, agentsGroups[groupIndex].position.x + 0.5f);
+			float z = RandomFloat(agentsGroups[groupIndex].position.z - 0.5f, agentsGroups[groupIndex].position.z + 0.5f);
 
 			//see if there are agents in this radius. if not, instantiante
 			bool pCollider = false;
-			for (int j = 0; j < agents.size(); j++) {
-				if (Distance(x, 0, z, agents[j].posX, agents[j].posY, agents[j].posZ) < 0.5f) {
+			for (int j = 0; j < agentsGroups[groupIndex].agents.size(); j++) {
+				if (Distance(x, 0, z, agentsGroups[groupIndex].agents[j].posX, agentsGroups[groupIndex].agents[j].posY, agentsGroups[groupIndex].agents[j].posZ) < 0.1f) {
 					pCollider = true;
 					break;
 				}
@@ -168,51 +243,22 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 			{
 				Agent newAgent(x, 0, z, "agent" + std::to_string(i));
 				//agent cell
-				newAgent.SetCell(&cells[cellIndex]);
+				newAgent.SetCell(agentsGroups[groupIndex].cell);
 				//agent radius
 				newAgent.agentRadius = agentRadius;
+				//group max speed
+				newAgent.maxSpeed = agentsGroups[groupIndex].maxSpeed;
 
-				//agent goals
-				for (int j = 0; j < goals.size(); j++)
-				{
-					//if goal is not looking for...
-					if (!goals[j].isLookingFor) {
-						//add a goal
-						newAgent.go.push_back(&goals[j]);
-						//add a random intention
-						newAgent.intentions.push_back(RandomFloat(0, (intentionThreshold - 0.01)));
-						//add a random desire
-						newAgent.AddDesire(RandomFloat(0, 1));
-					}
-				}
-
-				//get the first non taken looking for state
-				for (int j = 0; j < goals.size(); j++)
-				{
-					//if goal is looking for and is free...
-					if (goals[j].isLookingFor && !goals[j].isTaken) {
-						//add a goal
-						newAgent.go.push_back(&goals[j]);
-						//add intention 0.8
-						newAgent.intentions.push_back(0.8);
-						//add desire 1
-						newAgent.AddDesire(1);
-						//this looking for goal is taken now
-						goals[j].isTaken = true;
-						//already have one, get out!
-						break;
-					}
-				}
-
-				//reorder following intentions
-				newAgent.ReorderGoals();
-
-				agents.push_back(newAgent);
+				//add to group
+				newAgent.groupIndex = groupIndex;
+				agentsGroups[groupIndex].agents.push_back(newAgent);
 			}
 		}
 	}
-	for (int i = 0; i < agents.size(); i++) {
-		std::cout << agents[i].name << ": PosX - " << agents[i].posX << " -- PosZ - " << agents[i].posZ << "\n";
+	for (int i = 0; i < agentsGroups.size(); i++) {
+		for (int j = 0; j < agentsGroups[i].agents.size(); j++) {
+			std::cout << agentsGroups[i].agents[j].name << ": PosX - " << agentsGroups[i].agents[j].posX << " -- PosZ - " << agentsGroups[i].agents[j].posZ << "\n";
+		}
 	}
 	/*for (int i = 0; i < agents[0].go.size(); i++) {
 		std::cout << agents[0].go[i]->name << ": PosX - " << agents[0].go[i]->posX << " -- PosZ - " << agents[0].go[i]->posZ << " -- Intention: " << agents[0].intentions[i] << "\n";
@@ -258,8 +304,8 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 	//end triangulate the scene
 
 	//create the graph nodes
-	/*for (float i = 0; i < scenarioSizeX; i = i + nodeSize) {
-		for (float j = 0; j < scenarioSizeZ; j = j + nodeSize) {
+	/*for (float j = 0; j < scenarioSizeZ; j = j + nodeSize) {
+		for (float i = 0; i < scenarioSizeX; i = i + nodeSize) {
 			int weight = 1;
 
 			if (InsideObstacle(i, 0, j)) {
@@ -333,11 +379,24 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 		}
 	}*/
 
-	for (int i = 0; i < qntAgents; i++) {
-		AStarPath(&agents[i]);
+	for (int i = 0; i < agentsGroups.size(); i++) {
+		AStarPath(&agentsGroups[i]);
 
-		//start default values
-		agents[i].Start();
+		//start default values for each agent
+		for (int j = 0; j < agentsGroups[i].agents.size(); j++) {
+			if (agentsGroups[i].pathX.size() == 0) {
+				agentsGroups[i].agents[j].goalX = agentsGroups[i].go[0]->posX;
+				agentsGroups[i].agents[j].goalY = agentsGroups[i].go[0]->posY;
+				agentsGroups[i].agents[j].goalZ = agentsGroups[i].go[0]->posZ;
+			}
+			else {
+				agentsGroups[i].agents[j].goalX = agentsGroups[i].pathX[0];
+				agentsGroups[i].agents[j].goalY = agentsGroups[i].go[0]->posY;
+				agentsGroups[i].agents[j].goalZ = agentsGroups[i].pathZ[0];
+			}
+
+			agentsGroups[i].agents[j].ClearAgent();
+		}
 	}
 	//END A* SEARCH
 	////////////////////////////////////////
@@ -420,8 +479,8 @@ void Simulation::DefaultValues() {
 	plot = true;
 	//default node size
 	nodeSize = 1;
-	//will agents form groups?
-	groupingAgents = false;
+	//quantity of groups that agents will form. If it is zero, means no groups will be used (like groups = false), therefore, each agent will be alone in a group
+	qntGroups = 2;
 }
 
 //start the simulation and control the update
@@ -540,10 +599,12 @@ void Simulation::StartSimulation(int argcp, char **argv) {
 				}
 
 				//prepare agents to draw
-				for (int a = 0; a < agents.size(); a++) {
-					sf::RectangleShape *c1 = new sf::RectangleShape(sf::Vector2f(1, 1));
-					c1->setPosition(agents[a].posX + ((screenExtraSize / 2)), agents[a].posZ + ((screenExtraSize / 2)));
-					squaresAgents.push_back(c1);
+				for (int b = 0; b < agentsGroups.size(); b++) {
+					for (int a = 0; a < agentsGroups[b].agents.size(); a++) {
+						sf::RectangleShape *c1 = new sf::RectangleShape(sf::Vector2f(1, 1));
+						c1->setPosition(agentsGroups[b].agents[a].posX + ((screenExtraSize / 2)), agentsGroups[b].agents[a].posZ + ((screenExtraSize / 2)));
+						squaresAgents.push_back(c1);
+					}
 				}
 
 				//prepare goals to draw
@@ -627,7 +688,12 @@ void Simulation::StartSimulation(int argcp, char **argv) {
 //for that, we check if is there still an agent in the scene
 //just used when loadConfigFile = true
 void Simulation::EndSimulation() {
-	if (agents.size() == 0) {
+	int agentsSize = 0;
+	for (int i = 0; i < agentsGroups.size(); i++) {
+		agentsSize += agentsGroups[i].agents.size();
+	}
+
+	if (agentsSize == 0) {
 		std::cout << "Finishing Simulation " + std::to_string(simulationIndex) << "\n";
 
 		//close exit file
@@ -677,7 +743,7 @@ void Simulation::EndSimulation() {
 			theReader.close();
 
 			//reset scene
-			agents.clear();
+			agentsGroups.clear();
 			signs.clear();
 
 			//reinstantiate the goals signs
@@ -919,11 +985,11 @@ void Simulation::LoadConfigFile() {
 					if (std::stoi(entries[j]) <= goals.size())
 					{
 						//add a goal
-						newAgent.go.push_back(&goals[std::stoi(entries[j])-1]);
+						//newAgent.go.push_back(&goals[std::stoi(entries[j])-1]);
 						//add intention
-						newAgent.intentions.push_back(std::stof(entries[j + 1]));
+						//newAgent.intentions.push_back(std::stof(entries[j + 1]));
 						//add a random desire
-						newAgent.AddDesire(RandomFloat(0, 1));
+						//newAgent.AddDesire(RandomFloat(0, 1));
 					}
 				}
 
@@ -933,11 +999,11 @@ void Simulation::LoadConfigFile() {
 					//if goal is looking for and is free...
 					if (goals[j].isLookingFor && !goals[j].isTaken) {
 						//add a goal
-						newAgent.go.push_back(&goals[j]);
+						//newAgent.go.push_back(&goals[j]);
 						//add intention 0.8
-						newAgent.intentions.push_back(0.8);
+						//newAgent.intentions.push_back(0.8);
 						//add desire 1
-						newAgent.AddDesire(1);
+						//newAgent.AddDesire(1);
 						//this looking for goal is taken now
 						goals[j].isTaken = true;
 						//already have one, get out!
@@ -946,9 +1012,9 @@ void Simulation::LoadConfigFile() {
 				}
 
 				//reorder following intentions
-				newAgent.ReorderGoals();
+				//newAgent.ReorderGoals();
 
-				agents.push_back(newAgent);
+				//agents.push_back(newAgent);
 			}
 		}
 		lineCount++;
@@ -1087,10 +1153,10 @@ void Simulation::LoadConfigFile() {
 	if (!graphNodes.empty()) {
 		//calculate agents A* path
 		for (int i = 0; i < qntAgents; i++) {
-			AStarPath(&agents[i]);
+			//AStarPath(&agents[i]);
 
 			//start default values
-			agents[i].Start();
+			//agents[i].Start();
 		}
 	}
 }
@@ -1565,19 +1631,23 @@ void Simulation::Update(double elapsed) {
 		}*/
 		
 		//reset auxins
-		for (int i = 0; i < agents.size(); i++) {
-			std::vector<Marker*> axAge = agents[i].GetAuxins();
-			for (int j = 0; j < axAge.size(); j++)
-			{
-				axAge[j]->ResetAuxin();
+		for (int j = 0; j < agentsGroups.size(); j++) {
+			for (int i = 0; i < agentsGroups[j].agents.size(); i++) {
+				std::vector<Marker*> axAge = agentsGroups[j].agents[i].GetAuxins();
+				for (int j = 0; j < axAge.size(); j++)
+				{
+					axAge[j]->ResetAuxin();
+				}
 			}
 		}
 
 		//find nearest auxins for each agent
-		for (int i = 0; i < agents.size(); i++)
-		{
-			//find all auxins near him (Voronoi Diagram)
-			agents[i].FindNearAuxins(cellRadius, &cells, &agents, scenarioSizeX, scenarioSizeZ);
+		for (int j = 0; j < agentsGroups.size(); j++) {
+			for (int i = 0; i < agentsGroups[j].agents.size(); i++)
+			{
+				//find all auxins near him (Voronoi Diagram)
+				agentsGroups[j].agents[i].FindNearAuxins(cellRadius, &cells, &agentsGroups[j].agents, scenarioSizeX, scenarioSizeZ);
+			}
 		}
 		//std::cout << agents[0].GetAuxins().size() << "\n";
 		/*
@@ -1596,147 +1666,186 @@ void Simulation::Update(double elapsed) {
 		6 - walk (Caminhe())
 		7 - verify if the agent has reached the goal. If so, destroy it
 		*/
-		for (int i = 0; i < agents.size(); i++)
-		{
-			//update agent
-			bool recalculatePath = agents[i].Update(&signs);
-			if (recalculatePath) {
-				//need to recalculate path
-				AStarPath(&agents[i]);
-			}
-
-			//find his goal
-			Goal *goal = agents[i].go[0];
-			std::vector<Marker*> agentAuxins = agents[i].GetAuxins();
-
-			//vector for each auxin
-			for (int j = 0; j < agentAuxins.size(); j++)
+		for (int f = 0; f < agentsGroups.size(); f++) {
+			for (int i = 0; i < agentsGroups[f].agents.size(); i++)
 			{
-				//add the distance vector between it and the agent
-				agents[i].vetorDistRelacaoMarcacaoX.push_back(agentAuxins[j]->posX - agents[i].posX);
-				agents[i].vetorDistRelacaoMarcacaoY.push_back(agentAuxins[j]->posY - agents[i].posY);
-				agents[i].vetorDistRelacaoMarcacaoZ.push_back(agentAuxins[j]->posZ - agents[i].posZ);
-			}
-			/*for (int v = 0; v < agents[i].vetorDistRelacaoMarcacaoX.size(); v++) {
-				std::cout << agents[i].vetorDistRelacaoMarcacaoX[v] << "\n";
-			}*/
-
-			//calculate the movement vector
-			agents[i].CalculaDirecaoM();
-			//calculate speed vector
-			agents[i].CalculaVelocidade();
-
-			//now, we check if agent is stuck with another agent
-			//if so, change places
-			if (agents[i].speedX == 0 && agents[i].speedY == 0 && agents[i].speedZ == 0)
-			{
-				//check distance between this agent and every other agent
-				bool agentNear = false;
-				for (int j = 0; j < agents.size(); j++) {
-					//if they are too near and both with zero speed, probally stuck. Swap positions if this agent may do it
-					if (Distance(agents[i].posX, agents[i].posY, agents[i].posZ, agents[j].posX, agents[j].posY, agents[j].posZ)
-						< 0.1f && (agents[j].speedX == 0 && agents[j].speedY == 0 && agents[j].speedZ == 0) && agents[i].changePosition && i != j) {
-						std::cout << "\n LOCKED: " + agents[i].name + " with " + agents[j].name + "\n";
-						//system("PAUSE");
-
-						float posAuxX = agents[i].posX;
-						float posAuxY = agents[i].posY;
-						float posAuxZ = agents[i].posZ;
-						agents[i].posX = agents[j].posX;
-						agents[i].posY = agents[j].posY;
-						agents[i].posZ = agents[j].posZ;
-						agents[j].posX = posAuxX;
-						agents[j].posY = posAuxY;
-						agents[j].posZ = posAuxZ;
-
-						//the other agent doesnt change position
-						agents[j].changePosition = false;
-
-						agentNear = true;
-
-						break;
-					}
+				//update agent
+				agentsGroups[f].agents[i].Update(&signs);
+				//check signs in view
+				bool recalculatePath = agentsGroups[f].CheckSignsInView(&signs);
+				if (recalculatePath) {
+					//need to recalculate path
+					AStarPath(&agentsGroups[f]);
 				}
 
-				//if agent's speed is zero and found no agent near, he is probally locked. Let's unlock him!
-				if (!agentNear) {
-					//first, check if he is too much time idle
-					if (agents[i].idleTimer > agents[i].maxIdleTimer) {
-						//unlock him
-						UnlockAgent(&agents[i]);
-						//reset counter
-						agents[i].idleTimer = 0;
-					}//otherwise, keep counting
-					else {
-						agents[i].idleTimer++;
+				//find his goal
+				Goal *goal = agentsGroups[f].go[0];
+				std::vector<Marker*> agentAuxins = agentsGroups[f].agents[i].GetAuxins();
+
+				//vector for each auxin
+				for (int j = 0; j < agentAuxins.size(); j++)
+				{
+					//add the distance vector between it and the agent
+					agentsGroups[f].agents[i].vetorDistRelacaoMarcacaoX.push_back(agentAuxins[j]->posX - agentsGroups[f].agents[i].posX);
+					agentsGroups[f].agents[i].vetorDistRelacaoMarcacaoY.push_back(agentAuxins[j]->posY - agentsGroups[f].agents[i].posY);
+					agentsGroups[f].agents[i].vetorDistRelacaoMarcacaoZ.push_back(agentAuxins[j]->posZ - agentsGroups[f].agents[i].posZ);
+				}
+				/*for (int v = 0; v < agents[i].vetorDistRelacaoMarcacaoX.size(); v++) {
+					std::cout << agents[i].vetorDistRelacaoMarcacaoX[v] << "\n";
+				}*/
+
+				//calculate the movement vector
+				agentsGroups[f].agents[i].CalculaDirecaoM();
+				//calculate speed vector
+				agentsGroups[f].agents[i].CalculaVelocidade();
+
+				//now, we check if agent is stuck with another agent
+				//if so, change places
+				if (agentsGroups[f].agents[i].speedX == 0 && agentsGroups[f].agents[i].speedY == 0 && agentsGroups[f].agents[i].speedZ == 0)
+				{
+					//check distance between this agent and every other agent
+					bool agentNear = false;
+					for (int q = 0; q < agentsGroups.size(); q++) {
+						for (int j = 0; j < agentsGroups[q].agents.size(); j++) {
+							//if they are too near and both with zero speed, probally stuck. Swap positions if this agent may do it
+							if (Distance(agentsGroups[f].agents[i].posX, agentsGroups[f].agents[i].posY, agentsGroups[f].agents[i].posZ, agentsGroups[q].agents[j].posX, 
+								agentsGroups[q].agents[j].posY, agentsGroups[q].agents[j].posZ) < 0.1f && 
+								(agentsGroups[q].agents[j].speedX == 0 && agentsGroups[q].agents[j].speedY == 0 && agentsGroups[q].agents[j].speedZ == 0) && 
+								agentsGroups[f].agents[i].changePosition && i != j) {
+								std::cout << "\n LOCKED: " + agentsGroups[f].agents[i].name + " with " + agentsGroups[q].agents[j].name + "\n";
+								//system("PAUSE");
+
+								float posAuxX = agentsGroups[f].agents[i].posX;
+								float posAuxY = agentsGroups[f].agents[i].posY;
+								float posAuxZ = agentsGroups[f].agents[i].posZ;
+								agentsGroups[f].agents[i].posX = agentsGroups[q].agents[j].posX;
+								agentsGroups[f].agents[i].posY = agentsGroups[q].agents[j].posY;
+								agentsGroups[f].agents[i].posZ = agentsGroups[q].agents[j].posZ;
+								agentsGroups[q].agents[j].posX = posAuxX;
+								agentsGroups[q].agents[j].posY = posAuxY;
+								agentsGroups[q].agents[j].posZ = posAuxZ;
+
+								//the other agent doesnt change position
+								agentsGroups[q].agents[j].changePosition = false;
+
+								agentNear = true;
+
+								break;
+							}
+						}
+					}
+
+					//if agent's speed is zero and found no agent near, he is probally locked. Let's unlock him!
+					if (!agentNear) {
+						//first, check if he is too much time idle
+						if (agentsGroups[f].agents[i].idleTimer > agentsGroups[f].agents[i].maxIdleTimer) {
+							//unlock him
+							UnlockAgent(&agentsGroups[f].agents[i]);
+							//reset counter
+							agentsGroups[f].agents[i].idleTimer = 0;
+						}//otherwise, keep counting
+						else {
+							agentsGroups[f].agents[i].idleTimer++;
+						}
+					}
+				}//if he moved, we reset the idleTimer too
+				else {
+					agentsGroups[f].agents[i].idleTimer = 0;
+				}
+
+				//walk
+				agentsGroups[f].agents[i].Caminhe(elapsed);
+
+				//std::cout << "Segundos: " << ((float)simulationT) / CLOCKS_PER_SEC << "\n";
+				//std::cout << agents[i].name << ": " << agents[i].posX << "-" << agents[i].posZ << "\n";
+
+				//verify agent position, in relation to the goal.
+				//if the distance between them is less than 1 (arbitrary, maybe authors have a better solution), he arrived. Destroy it so
+				float dist = Distance(goal->posX, goal->posY, goal->posZ, agentsGroups[f].agents[i].posX, agentsGroups[f].agents[i].posY, agentsGroups[f].agents[i].posZ);
+				if (dist < agentsGroups[f].agents[i].agentRadius)
+				{
+					//he arrived! Lets save this on file
+					//open exit file to save info each frame
+					//JUST NEED TO SAVE THE LAST ONE, SO BYEEEE...
+					//SaveAgentsGoalFile(agentI.name, goal.name);
+
+					//if we are already at the last agent goal, he arrived
+					//if he has 2 goals yet, but the second one is the Looking For, he arrived too
+					if (agentsGroups[f].go.size() == 1 || (agentsGroups[f].go.size() == 2 && agentsGroups[f].go[1]->name == "LookingFor"))
+					{
+						std::cout << agentsGroups[f].agents[i].name << " arrived at goal " << agentsGroups[f].go[0]->name << ", finished!!\n";
+						SaveAgentsGoalFile(agentsGroups[f].agents[i].name, goal->name);
+						agentsGroups[f].agents.erase(agentsGroups[f].agents.begin() + i);
+						//this agent is done. Back to the for
+						continue;
+					}//else, he must go to the next goal. Remove this actual goal and this intention
+					else
+					{
+						//before we remove his actual go, we check if it is the looking for state.
+						//if it is, we change its position, because he doesnt know where to go yet
+						if (agentsGroups[f].go[0]->name == "LookingFor") {
+							ChangeLookingFor(agentsGroups[f].go[0]);
+							/*for (int j = 0; j < agents[i].go.size(); j++) {
+								std::cout << agents[i].go[j]->name << ": PosX - " << agents[i].go[j]->posX << " -- PosZ - "
+									<< agents[i].go[j]->posZ << " -- Intention: " << agents[i].intentions[j] << "\n";
+							}*/
+
+							//need to recalculate path
+							AStarPath(&agentsGroups[f]);
+						}//else, just remove it
+						else {
+							std::cout << agentsGroups[f].agents[i].name << " arrived at goal " << agentsGroups[f].go[0]->name << "\n";
+							agentsGroups[f].go.erase(agentsGroups[f].go.begin());
+							agentsGroups[f].intentions.erase(agentsGroups[f].intentions.begin());
+							agentsGroups[f].desire.erase(agentsGroups[f].desire.begin());
+
+							//need to recalculate path
+							AStarPath(&agentsGroups[f]);
+
+							for (int j = 0; j < agentsGroups[f].agents.size(); j++) {
+								if (agentsGroups[f].pathX.size() == 0) {
+									agentsGroups[f].agents[j].goalX = agentsGroups[f].go[0]->posX;
+									agentsGroups[f].agents[j].goalY = agentsGroups[f].go[0]->posY;
+									agentsGroups[f].agents[j].goalZ = agentsGroups[f].go[0]->posZ;
+								}
+								else {
+									agentsGroups[f].agents[j].goalX = agentsGroups[f].pathX[0];
+									agentsGroups[f].agents[j].goalY = agentsGroups[f].go[0]->posY;
+									agentsGroups[f].agents[j].goalZ = agentsGroups[f].pathZ[0];
+								}
+							}
+						}
 					}
 				}
-			}//if he moved, we reset the idleTimer too
-			else {
-				agents[i].idleTimer = 0;
 			}
 
-			//walk
-			agents[i].Caminhe(elapsed);
+			//after all agents walked, find the centroid of all agents to update center position of the group
+			float centerX = 0;
+			float centerZ = 0;
+			for (int j = 0; j < agentsGroups[f].agents.size(); j++) {
+				centerX += agentsGroups[f].agents[j].posX;
+				centerZ += agentsGroups[f].agents[j].posZ;
+			}
+			Vector3 newPosition;
+			newPosition.x = centerX / agentsGroups[f].agents.size();
+			newPosition.y = 0;
+			newPosition.z = centerZ / agentsGroups[f].agents.size();
+			agentsGroups[f].position = newPosition;
 
 			//need to change path node?
-			agents[i].ChangePath();
-
-			//std::cout << "Segundos: " << ((float)simulationT) / CLOCKS_PER_SEC << "\n";
-			//std::cout << agents[i].name << ": " << agents[i].posX << "-" << agents[i].posZ << "\n";
-
-			//verify agent position, in relation to the goal.
-			//if the distance between them is less than 1 (arbitrary, maybe authors have a better solution), he arrived. Destroy it so
-			float dist = Distance(goal->posX, goal->posY, goal->posZ, agents[i].posX, agents[i].posY, agents[i].posZ);
-			if (dist < agents[i].agentRadius)
-			{
-				//he arrived! Lets save this on file
-				//open exit file to save info each frame
-				//JUST NEED TO SAVE THE LAST ONE, SO BYEEEE...
-				//SaveAgentsGoalFile(agentI.name, goal.name);
-
-				//if we are already at the last agent goal, he arrived
-				//if he has 2 goals yet, but the second one is the Looking For, he arrived too
-				if (agents[i].go.size() == 1 || (agents[i].go.size() == 2 && agents[i].go[1]->name == "LookingFor"))
-				{
-					std::cout << agents[i].name << " arrived at goal " << agents[i].go[0]->name << ", finished!!\n";
-					SaveAgentsGoalFile(agents[i].name, goal->name);
-					agents.erase(agents.begin() + i);
-					//this agent is done. Back to the for
-					continue;
-				}//else, he must go to the next goal. Remove this actual goal and this intention
-				else
-				{
-					//before we remove his actual go, we check if it is the looking for state.
-					//if it is, we change its position, because he doesnt know where to go yet
-					if (agents[i].go[0]->name == "LookingFor") {
-						ChangeLookingFor(agents[i].go[0]);
-						/*for (int j = 0; j < agents[i].go.size(); j++) {
-							std::cout << agents[i].go[j]->name << ": PosX - " << agents[i].go[j]->posX << " -- PosZ - "
-								<< agents[i].go[j]->posZ << " -- Intention: " << agents[i].intentions[j] << "\n";
-						}*/
-
-						//need to recalculate path
-						AStarPath(&agents[i]);
-					}//else, just remove it
-					else {
-						std::cout << agents[i].name << " arrived at goal " << agents[i].go[0]->name << "\n";
-						agents[i].go.erase(agents[i].go.begin());
-						agents[i].intentions.erase(agents[i].intentions.begin());
-						agents[i].RemoveDesire(0);
-
-						//need to recalculate path
-						AStarPath(&agents[i]);
-					}
-				}
-			}
+			agentsGroups[f].ChangePath();
 		}
 
 		//write the exit file
 		SaveExitFile();
 
 		//if there are agents no more, and it is not loaded, bye
-		if (agents.size() == 0 && !loadConfigFile) {
+		//get agents info
+		int agentsSize = 0;
+		for (int i = 0; i < agentsGroups.size(); i++) {
+			agentsSize += agentsGroups[i].agents.size();
+		}
+		if (agentsSize == 0 && !loadConfigFile) {
 			gameOver = true;
 		}
 
@@ -1751,21 +1860,27 @@ void Simulation::Update(double elapsed) {
 //save a csv exit file, with positions of all agents in function of time
 void Simulation::SaveExitFile() {
 	//get agents info
-	if (agents.size() > 0)
+	int agentsSize = 0;
+	for (int i = 0; i < agentsGroups.size(); i++) {
+		agentsSize += agentsGroups[i].agents.size();
+	}
+	if (agentsSize > 0)
 	{
 		//exitFile << "<FRAME FrameAtual='" << frameCount << "' qtdPos='10'>";
 		
 		//each line: frame, agents name, positionx, positiony, positionz, goal object name, cell name
 		//separated with ;
 		//for each agent
-		for (int i = 0; i < agents.size(); i++)
-		{
-			exitFile << std::to_string((((float)clock() - startTime) / CLOCKS_PER_SEC) - lastFrameCount) + ";" + agents[i].name + ";"
-				+ std::to_string(agents[i].posX) + ";" + std::to_string(agents[i].posY) + ";" + std::to_string(agents[i].posZ) + ";" +
-				agents[i].go[0]->name + ";" + agents[i].GetCell()->name + "\n";
+		for (int j = 0; j < agentsGroups.size(); j++) {
+			for (int i = 0; i < agentsGroups[j].agents.size(); i++)
+			{
+				exitFile << std::to_string((((float)clock() - startTime) / CLOCKS_PER_SEC) - lastFrameCount) + ";" + agentsGroups[j].agents[i].name + ";"
+					+ std::to_string(agentsGroups[j].agents[i].posX) + ";" + std::to_string(agentsGroups[j].agents[i].posY) + ";" + std::to_string(agentsGroups[j].agents[i].posZ) + ";" +
+					agentsGroups[j].go[0]->name + ";" + agentsGroups[j].agents[i].GetCell()->name + "\n";
 
-			//invert Y and Z, since the visualisation works with X and Y
-			//exitFile << "<AGENT id='" + std::to_string(i) + "'>\n<POSITION>"+ std::to_string(agents[i].posX) +" "+ std::to_string(agents[i].posZ) +" "+ std::to_string(agents[i].posY) +"</POSITION>\n</AGENT>\n";
+				//invert Y and Z, since the visualisation works with X and Y
+				//exitFile << "<AGENT id='" + std::to_string(i) + "'>\n<POSITION>"+ std::to_string(agents[i].posX) +" "+ std::to_string(agents[i].posZ) +" "+ std::to_string(agents[i].posY) +"</POSITION>\n</AGENT>\n";
+			}
 		}
 
 		//exitFile << "</FRAME>";
@@ -2490,10 +2605,14 @@ void Simulation::ReadOBJFile()
 }
 
 //generate a new looking for
-//it will be added as a goal for each agent. So, a simulation should generate qntAgents looking for goals
+//it will be added as a goal for each agent group. So, a simulation should generate qntAgents looking for goals
 void Simulation::GenerateLookingFor() {
+	int qntLF = qntAgents;
+	if (qntGroups > 0 && qntGroups < qntAgents) {
+		qntLF = qntGroups;
+	}
 	//for each agent
-	for (int i = 0; i < qntAgents; i++) {
+	for (int i = 0; i < qntLF; i++) {
 		bool pCollider = true;
 		//while i have an obstacle on the way
 		while (pCollider) {
@@ -2703,10 +2822,12 @@ void Simulation::UnlockAgent(Agent* agentToUnlock) {
 
 		//see if there are agents in this radius. if not, new position
 		bool pCollider = false;
-		for (int j = 0; j < agents.size(); j++) {
-			if (Distance(x, 0, z, agents[j].posX, agents[j].posY, agents[j].posZ) < 0.5f) {
-				pCollider = true;
-				break;
+		for (int i = 0; i < agentsGroups.size(); i++) {
+			for (int j = 0; j < agentsGroups[i].agents.size(); j++) {
+				if (Distance(x, 0, z, agentsGroups[i].agents[j].posX, agentsGroups[i].agents[j].posY, agentsGroups[i].agents[j].posZ) < 0.1f) {
+					pCollider = true;
+					break;
+				}
 			}
 		}
 
@@ -2725,12 +2846,12 @@ void Simulation::UnlockAgent(Agent* agentToUnlock) {
 			std::cout << agentToUnlock->name << " new position: " << x << " -- " << z << "\n";
 
 			//need to recalculate path
-			AStarPath(agentToUnlock);
+			AStarPath(&agentsGroups[agentToUnlock->groupIndex]);
 
 			//his next goal
-			if (agentToUnlock->pathX.size() > 0) {
-				agentToUnlock->goalX = agentToUnlock->pathX[0];
-				agentToUnlock->goalZ = agentToUnlock->pathZ[0];
+			if (agentsGroups[agentToUnlock->groupIndex].pathX.size() > 0) {
+				agentToUnlock->goalX = agentsGroups[agentToUnlock->groupIndex].pathX[0];
+				agentToUnlock->goalZ = agentsGroups[agentToUnlock->groupIndex].pathZ[0];
 			}
 
 			break;
@@ -2762,7 +2883,7 @@ void Simulation::CalculateMeanPoints(std::vector<Triangle>* triangles) {
 }
 
 //A Star Search Path
-void Simulation::AStarPath(Agent* agentPath) {
+void Simulation::AStarPath(AgentGroup* agentPath) {
 	//clear actual path
 	agentPath->pathX.clear();
 	agentPath->pathZ.clear();
@@ -2779,8 +2900,8 @@ void Simulation::AStarPath(Agent* agentPath) {
 		// Create a start state
 		AStarSearchNode nodeStart;
 
-		nodeStart.x = agentPath->posX;
-		nodeStart.y = agentPath->posZ;
+		nodeStart.x = agentPath->position.x;
+		nodeStart.y = agentPath->position.z;
 		nodeStart.maxSizeX = scenarioSizeX;
 		nodeStart.maxSizeZ = scenarioSizeZ;
 		nodeStart.graphNodes = &graphNodes;
