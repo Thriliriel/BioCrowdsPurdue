@@ -77,16 +77,16 @@ void Agent::ClearAgent()
 }
 
 //walk
-void Agent::Caminhe(float tempo)
+void Agent::Caminhe(float time)
 {
-	//std::cout << name << ": SpeedX - " << speedX << " -- SpeedZ - " << speedZ << "-- Tempo: " << tempo << "\n";
-	posX += speedX*tempo;
-	posY += speedY*tempo;
-	posZ += speedZ*tempo;
+	//std::cout << name << ": SpeedX - " << speedX << " -- SpeedZ - " << speedZ << "-- Time: " << time << "\n";
+	posX += speedX*time;
+	posY += speedY*time;
+	posZ += speedZ*time;
 	/*posX += speedX;
 	posY += speedY;
 	posZ += speedZ;*/
-	//std::cout << name << ": PosX - " << posX << " -- PosZ - " << posZ << "-- Tempo: " << tempo << "\n";
+	//std::cout << name << ": PosX - " << posX << " -- PosZ - " << posZ << "-- Time: " << time << "\n";
 }
 
 //The calculation formula starts here
@@ -160,7 +160,7 @@ float Agent::CalculaF(int indiceRelacao)
 }
 
 //calculate speed vector    
-void Agent::CalculaVelocidade()
+void Agent::CalculaVelocidade(Vector3 groupCenter, float cohesion, float time)
 {
 	//distance between movement vector and origin
 	float moduloM = Distance(mX, mY, mZ, 0, 0, 0);
@@ -168,10 +168,20 @@ void Agent::CalculaVelocidade()
 	//multiply for PI
 	//float s = moduloM * 3.14f;
 	float s = moduloM;
+	float thisMaxSpeed = maxSpeed;
+
+	//actual distance from group center position
+	float actualDistance = Distance(posX, posY, posZ, groupCenter.x, groupCenter.y, groupCenter.z);
+	//movement prediction distance
+	float movementPredctionDistance = Distance(posX + ((s * (mX / moduloM))*time), posY + ((s * (mY / moduloM))*time), posZ + ((s * (mZ / moduloM))*time), groupCenter.x, groupCenter.y, groupCenter.z);
+	//test the movement prediction. If the agent will be too far from group center position, reduce his maxSpeed
+	if (movementPredctionDistance > 3 - cohesion && movementPredctionDistance > actualDistance) {
+		thisMaxSpeed /= 5;
+	}
 
 	//if it is bigger than maxSpeed, use maxSpeed instead
-	if (s > maxSpeed)
-		s = maxSpeed;
+	if (s > thisMaxSpeed)
+		s = thisMaxSpeed;
 	
 	if (moduloM > 0.0001)
 	{

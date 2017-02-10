@@ -165,3 +165,17 @@ float AgentGroup::Distance(float x1, float y1, float z1, float x2, float y2, flo
 
 	return result;
 }
+
+//Getters and Setters
+float AgentGroup::GetMaxSpeed() {
+	return maxSpeed;
+}
+void AgentGroup::SetMaxSpeed(float value) {
+	maxSpeed = value;
+}
+Hofstede AgentGroup::GetHofstede() {
+	return hofstede;
+}
+void AgentGroup::SetHofstede(Hofstede value) {
+	hofstede = value;
+}

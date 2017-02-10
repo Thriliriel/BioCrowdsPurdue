@@ -84,7 +84,7 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 		CheckGroupVertices();
 
 		//new obstacles
-		DrawObstacles();
+		//DrawObstacles();
 		//std::cout << verticesObstaclesX.size() << " -- " << verticesObstaclesZ.size() << "\n";
 
 		//std::cout << "Qnt Obstacles: " << obstacles.size() << "\n";
@@ -154,12 +154,31 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 					tries++;
 				}
 			}
+
+			//new group center position
 			Vector3 newPosition;
 			newPosition.x = x;
 			newPosition.y = 0;
 			newPosition.z = z;
 
-			AgentGroup newAgentGroup(newPosition, &cells[cellIndex], 0.5f * (i + 1) * (i + 1));
+			//varying group max speed: 0.5f * (i + 1) * (i + 1)
+			AgentGroup newAgentGroup(newPosition, &cells[cellIndex], 1.5f);
+
+			//calculate the group hofstede
+			//start the hofstede
+			Hofstede hof(1);
+			//Hofstede::CalculateHofstede(int pdi, int mas, int lto, int ing)
+			hof.CalculateHofstede((i + 1) * (i + 1) * (i + 1) * (i + 1) * (i + 1) * (i + 1), 1, 1, 1);
+
+			//static values for cohesion
+			if (i == 0) {
+				hof.SetMeanCohesion(0.5f);
+			}
+			else {
+				hof.SetMeanCohesion(2.5f);
+			}
+
+			newAgentGroup.SetHofstede(hof);
 
 			//agent group goals
 			for (int j = 0; j < goals.size(); j++)
@@ -212,14 +231,21 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 				std::cout << "There is no enough space for all agents.\n";
 			}
 
+			float meanDist = 0.1f;
+			//use the mean distance from group Hofstead
+			if (useHofstede || true) {
+				meanDist = agentsGroups[groupIndex].GetHofstede().GetMeanDist();
+			}
+
 			//generate the agent position
-			float x = RandomFloat(agentsGroups[groupIndex].position.x - 0.5f, agentsGroups[groupIndex].position.x + 0.5f);
-			float z = RandomFloat(agentsGroups[groupIndex].position.z - 0.5f, agentsGroups[groupIndex].position.z + 0.5f);
+			float x = RandomFloat(agentsGroups[groupIndex].position.x - meanDist * 2, agentsGroups[groupIndex].position.x + meanDist * 2);
+			float z = RandomFloat(agentsGroups[groupIndex].position.z - meanDist * 2, agentsGroups[groupIndex].position.z + meanDist * 2);
 
 			//see if there are agents in this radius. if not, instantiante
 			bool pCollider = false;
+			
 			for (int j = 0; j < agentsGroups[groupIndex].agents.size(); j++) {
-				if (Distance(x, 0, z, agentsGroups[groupIndex].agents[j].posX, agentsGroups[groupIndex].agents[j].posY, agentsGroups[groupIndex].agents[j].posZ) < 0.1f) {
+				if (Distance(x, 0, z, agentsGroups[groupIndex].agents[j].posX, agentsGroups[groupIndex].agents[j].posY, agentsGroups[groupIndex].agents[j].posZ) < meanDist) {
 					pCollider = true;
 					break;
 				}
@@ -247,7 +273,7 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 				//agent radius
 				newAgent.agentRadius = agentRadius;
 				//group max speed
-				newAgent.maxSpeed = agentsGroups[groupIndex].maxSpeed;
+				newAgent.maxSpeed = agentsGroups[groupIndex].GetMaxSpeed();
 
 				//add to group
 				newAgent.groupIndex = groupIndex;
@@ -268,139 +294,116 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 		std::cout << signs[p].GetGoal()->name << "\n";
 	}*/
 
-	//triangulate the scene
-	std::vector<Vec2f> points;
+	//just need to triangulate if using A*
+	if (useAStar) {
+		//triangulate the scene
+		std::vector<Vec2f> points;
 
-	//scenario boundaries
-	points.push_back(Vec2f(0, 0));
-	points.push_back(Vec2f(0, scenarioSizeZ));
-	points.push_back(Vec2f(scenarioSizeX, scenarioSizeZ));
-	points.push_back(Vec2f(scenarioSizeX, 0));
+		//scenario boundaries
+		points.push_back(Vec2f(0, 0));
+		points.push_back(Vec2f(0, scenarioSizeZ));
+		points.push_back(Vec2f(scenarioSizeX, scenarioSizeZ));
+		points.push_back(Vec2f(scenarioSizeX, 0));
 
-	//add the points
-	for (int o = 0; o < obstaclesX.size(); o++) {
-		for (int q = 0; q < obstaclesX[o].size(); q++) {
-			points.push_back(Vec2f(obstaclesX[o][q], obstaclesZ[o][q]));
-		}
-	}
-
-	Delaunay triangulation;
-	std::vector<Triangle> triangles = triangulation.triangulate(points);
-
-	/*std::vector<Triangle> triangles;
-	for (int i = 0; i < allTriangles[0].size(); i = i + 3) {
-		Triangle tri(Vec2f(obstaclesX[0][allTriangles[0][i]], obstaclesZ[0][allTriangles[0][i]]), Vec2f(obstaclesX[0][allTriangles[0][i + 1]], obstaclesZ[0][allTriangles[0][i + 1]]),
-			Vec2f(obstaclesX[0][allTriangles[0][i + 2]], obstaclesZ[0][allTriangles[0][i + 2]]));
-		triangles.push_back(tri);
-	}*/
-
-	//calculate the mean points of each triangle
-	//here we prepare the graph
-	CalculateMeanPoints(&triangles);
-
-	//done, clear it
-	points.clear();
-	triangles.clear();
-	//end triangulate the scene
-
-	//create the graph nodes
-	/*for (float j = 0; j < scenarioSizeZ; j = j + nodeSize) {
-		for (float i = 0; i < scenarioSizeX; i = i + nodeSize) {
-			int weight = 1;
-
-			if (InsideObstacle(i, 0, j)) {
-				weight = 9;
-			}
-
-			graphNodes.push_back(weight);
-		}
-	}*/
-
-	/*for (float i = 0; i < scenarioSizeX; i = i + nodeSize) {
-		for (float j = 0; j < scenarioSizeZ; j = j + nodeSize) {
-			//std::cout << graphNodes[(j*scenarioSizeX) + i] << "\t";
-			//(((i - cellRadius) / (cellRadius * 2)) * (worldSizeZ / (cellRadius * 2))) + ((j - cellRadius) / (cellRadius * 2))
-			//std::cout << i << "-" << j << "--" << ((i*scenarioSizeZ) + j) << ": " << graphNodes[(i*scenarioSizeZ) + j] << "\t";
-			std::cout << i << "-" << j << "--" << (((i / nodeSize)*(scenarioSizeZ / nodeSize)) + (j / nodeSize)) << ": " << graphNodes[(((i / nodeSize)*(scenarioSizeZ / nodeSize)) + (j / nodeSize))] << "\t";
-		}
-		std::cout << "\n";
-	}*/
-	//std::cout << graphNodes.size() << "\n";
-
-	/////////////////////////////////////////
-	//A* SEARCH
-	//for each agent
-	std::cout << "Generating paths...\n";
-
-	//goals repositioning
-	for (int i = 0; i < goals.size(); i++) {
-		//set his initial position based on the graph nodes
-		float distance = scenarioSizeX;
-		int index = -1;
-		for (int g = 0; g < graphNodesPos.size(); g++) {
-			float thisDistance = Distance(goals[i].posX, goals[i].posY, goals[i].posZ, graphNodesPos[g].x, 0, graphNodesPos[g].z);
-			if (thisDistance < distance) {
-				index = g;
-				distance = thisDistance;
+		//add the points
+		for (int o = 0; o < obstaclesX.size(); o++) {
+			for (int q = 0; q < obstaclesX[o].size(); q++) {
+				points.push_back(Vec2f(obstaclesX[o][q], obstaclesZ[o][q]));
 			}
 		}
 
-		if (index > -1) {
-			//need to reposition his sign too
-			for (int s = 0; s < signs.size(); s++) {
-				if (signs[s].posX == goals[i].posX && signs[s].posZ == goals[i].posZ) {
-					signs[s].posX = graphNodesPos[index].x;
-					signs[s].posZ = graphNodesPos[index].z;
-					break;
+		Delaunay triangulation;
+		std::vector<Triangle> triangles = triangulation.triangulate(points);
+
+		//calculate the mean points of each triangle
+		//here we prepare the graph
+		CalculateMeanPoints(&triangles);
+
+		//done, clear it
+		points.clear();
+		triangles.clear();
+		//end triangulate the scene
+
+		//create the graph nodes
+		/*for (float j = 0; j < scenarioSizeZ; j = j + nodeSize) {
+			for (float i = 0; i < scenarioSizeX; i = i + nodeSize) {
+				int weight = 1;
+
+				if (InsideObstacle(i, 0, j)) {
+					weight = 9;
+				}
+
+				graphNodes.push_back(weight);
+			}
+		}*/
+
+		/*for (float j = 0; j < scenarioSizeZ; j = j + nodeSize) {
+			for (float i = 0; i < scenarioSizeX; i = i + nodeSize) {
+				//std::cout << graphNodes[(j*scenarioSizeX) + i] << "\t";
+				//(((i - cellRadius) / (cellRadius * 2)) * (worldSizeZ / (cellRadius * 2))) + ((j - cellRadius) / (cellRadius * 2))
+				//std::cout << i << "-" << j << "--" << ((i*scenarioSizeZ) + j) << ": " << graphNodes[(i*scenarioSizeZ) + j] << "\t";
+				std::cout << i << "-" << j << "--" << (((i / nodeSize)*(scenarioSizeZ / nodeSize)) + (j / nodeSize)) << ": " << graphNodes[(((i / nodeSize)*(scenarioSizeZ / nodeSize)) + (j / nodeSize))] << "\t";
+			}
+			std::cout << "\n";
+		}*/
+		//std::cout << graphNodes.size() << "\n";
+
+		/////////////////////////////////////////
+		//A* SEARCH
+		//for each agent
+		std::cout << "Generating paths...\n";
+
+		//goals repositioning
+		for (int i = 0; i < goals.size(); i++) {
+			//set his initial position based on the graph nodes
+			float distance = scenarioSizeX;
+			int index = -1;
+			for (int g = 0; g < graphNodesPos.size(); g++) {
+				float thisDistance = Distance(goals[i].posX, goals[i].posY, goals[i].posZ, graphNodesPos[g].x, 0, graphNodesPos[g].z);
+				if (thisDistance < distance) {
+					index = g;
+					distance = thisDistance;
 				}
 			}
 
-			goals[i].posX = graphNodesPos[index].x;
-			goals[i].posZ = graphNodesPos[index].z;
+			if (index > -1) {
+				//need to reposition his sign too
+				for (int s = 0; s < signs.size(); s++) {
+					if (signs[s].posX == goals[i].posX && signs[s].posZ == goals[i].posZ) {
+						signs[s].posX = graphNodesPos[index].x;
+						signs[s].posZ = graphNodesPos[index].z;
+						break;
+					}
+				}
+
+				goals[i].posX = graphNodesPos[index].x;
+				goals[i].posZ = graphNodesPos[index].z;
+			}
 		}
+
+		for (int i = 0; i < agentsGroups.size(); i++) {
+			AStarPath(&agentsGroups[i]);
+
+			//start default values for each agent
+			for (int j = 0; j < agentsGroups[i].agents.size(); j++) {
+				if (agentsGroups[i].pathX.size() == 0) {
+					agentsGroups[i].agents[j].goalX = agentsGroups[i].go[0]->posX;
+					agentsGroups[i].agents[j].goalY = agentsGroups[i].go[0]->posY;
+					agentsGroups[i].agents[j].goalZ = agentsGroups[i].go[0]->posZ;
+				}
+				else {
+					agentsGroups[i].agents[j].goalX = agentsGroups[i].pathX[0];
+					agentsGroups[i].agents[j].goalY = agentsGroups[i].go[0]->posY;
+					agentsGroups[i].agents[j].goalZ = agentsGroups[i].pathZ[0];
+				}
+
+				agentsGroups[i].agents[j].ClearAgent();
+			}
+		}
+		//END A* SEARCH
+		////////////////////////////////////////
+		std::cout << "Paths done!\n";
 	}
-
-	//agents repositioning
-	/*for (int i = 0; i < agents.size(); i++) {
-		//set his initial position based on the graph nodes
-		float distance = scenarioSizeX;
-		int index = -1;
-		for (int g = 0; g < graphNodesPos.size(); g++) {
-			float thisDistance = Distance(agents[i].posX, agents[i].posY, agents[i].posZ, graphNodesPos[g].x, 0, graphNodesPos[g].z);
-			if (thisDistance < distance) {
-				index = g;
-				distance = thisDistance;
-			}
-		}
-
-		if (index > -1) {
-			agents[i].posX = graphNodesPos[index].x;
-			agents[i].posZ = graphNodesPos[index].z;
-		}
-	}*/
-
-	for (int i = 0; i < agentsGroups.size(); i++) {
-		AStarPath(&agentsGroups[i]);
-
-		//start default values for each agent
-		for (int j = 0; j < agentsGroups[i].agents.size(); j++) {
-			if (agentsGroups[i].pathX.size() == 0) {
-				agentsGroups[i].agents[j].goalX = agentsGroups[i].go[0]->posX;
-				agentsGroups[i].agents[j].goalY = agentsGroups[i].go[0]->posY;
-				agentsGroups[i].agents[j].goalZ = agentsGroups[i].go[0]->posZ;
-			}
-			else {
-				agentsGroups[i].agents[j].goalX = agentsGroups[i].pathX[0];
-				agentsGroups[i].agents[j].goalY = agentsGroups[i].go[0]->posY;
-				agentsGroups[i].agents[j].goalZ = agentsGroups[i].pathZ[0];
-			}
-
-			agentsGroups[i].agents[j].ClearAgent();
-		}
-	}
-	//END A* SEARCH
-	////////////////////////////////////////
-	std::cout << "Paths done!\n";
 
 	//all ready to go. If saveConfigFile is checked, save this config in a csv file
 	if (saveConfigFile)
@@ -481,6 +484,10 @@ void Simulation::DefaultValues() {
 	nodeSize = 1;
 	//quantity of groups that agents will form. If it is zero, means no groups will be used (like groups = false), therefore, each agent will be alone in a group
 	qntGroups = 2;
+	//using A*?
+	useAStar = false;
+	//using Hofstede?
+	useHofstede = false;
 }
 
 //start the simulation and control the update
@@ -552,32 +559,35 @@ void Simulation::StartSimulation(int argcp, char **argv) {
 					} });
 
 				//obstacles lines
-				/*for (int o = 0; o < obstaclesX.size(); o++) {
-					for (int q = 0; q < obstaclesX[o].size(); q++) {
-						int nextIndex = q + 1;
-						if (nextIndex >= obstaclesX[o].size()) {
-							nextIndex = 0;
-						}
-
+				if (useAStar) {
+					for (int q = 0; q < graphNodesPos.size(); q++) {
 						linesObstacles.push_back({ {
-								sf::Vertex(sf::Vector2f(obstaclesX[o][q] + ((screenExtraSize / 2)), obstaclesZ[o][q] + ((screenExtraSize / 2))), sf::Color::Red),
-								sf::Vertex(sf::Vector2f(obstaclesX[o][nextIndex] + ((screenExtraSize / 2)), obstaclesZ[o][nextIndex] + ((screenExtraSize / 2))), sf::Color::Red)
+								sf::Vertex(sf::Vector2f(graphNodesPos[q].v1X + ((screenExtraSize / 2)), graphNodesPos[q].v1Z + ((screenExtraSize / 2))), sf::Color::Red),
+								sf::Vertex(sf::Vector2f(graphNodesPos[q].v2X + ((screenExtraSize / 2)), graphNodesPos[q].v2Z + ((screenExtraSize / 2))), sf::Color::Red)
+							} });
+						linesObstacles.push_back({ {
+								sf::Vertex(sf::Vector2f(graphNodesPos[q].v2X + ((screenExtraSize / 2)), graphNodesPos[q].v2Z + ((screenExtraSize / 2))), sf::Color::Red),
+								sf::Vertex(sf::Vector2f(graphNodesPos[q].v3X + ((screenExtraSize / 2)), graphNodesPos[q].v3Z + ((screenExtraSize / 2))), sf::Color::Red)
+							} });
+						linesObstacles.push_back({ {
+								sf::Vertex(sf::Vector2f(graphNodesPos[q].v3X + ((screenExtraSize / 2)), graphNodesPos[q].v3Z + ((screenExtraSize / 2))), sf::Color::Red),
+								sf::Vertex(sf::Vector2f(graphNodesPos[q].v1X + ((screenExtraSize / 2)), graphNodesPos[q].v1Z + ((screenExtraSize / 2))), sf::Color::Red)
 							} });
 					}
-				}*/
-				for (int q = 0; q < graphNodesPos.size(); q++) {
-					linesObstacles.push_back({ {
-							sf::Vertex(sf::Vector2f(graphNodesPos[q].v1X +((screenExtraSize / 2)), graphNodesPos[q].v1Z + ((screenExtraSize / 2))), sf::Color::Red),
-							sf::Vertex(sf::Vector2f(graphNodesPos[q].v2X + ((screenExtraSize / 2)), graphNodesPos[q].v2Z + ((screenExtraSize / 2))), sf::Color::Red)
-						} });
-					linesObstacles.push_back({ {
-							sf::Vertex(sf::Vector2f(graphNodesPos[q].v2X + ((screenExtraSize / 2)), graphNodesPos[q].v2Z + ((screenExtraSize / 2))), sf::Color::Red),
-							sf::Vertex(sf::Vector2f(graphNodesPos[q].v3X + ((screenExtraSize / 2)), graphNodesPos[q].v3Z + ((screenExtraSize / 2))), sf::Color::Red)
-						} });
-					linesObstacles.push_back({ {
-							sf::Vertex(sf::Vector2f(graphNodesPos[q].v3X + ((screenExtraSize / 2)), graphNodesPos[q].v3Z + ((screenExtraSize / 2))), sf::Color::Red),
-							sf::Vertex(sf::Vector2f(graphNodesPos[q].v1X + ((screenExtraSize / 2)), graphNodesPos[q].v1Z + ((screenExtraSize / 2))), sf::Color::Red)
-						} });
+				}else{
+					for (int o = 0; o < obstaclesX.size(); o++) {
+						for (int q = 0; q < obstaclesX[o].size(); q++) {
+							int nextIndex = q + 1;
+							if (nextIndex >= obstaclesX[o].size()) {
+								nextIndex = 0;
+							}
+
+							linesObstacles.push_back({ {
+									sf::Vertex(sf::Vector2f(obstaclesX[o][q] + ((screenExtraSize / 2)), obstaclesZ[o][q] + ((screenExtraSize / 2))), sf::Color::Red),
+									sf::Vertex(sf::Vector2f(obstaclesX[o][nextIndex] + ((screenExtraSize / 2)), obstaclesZ[o][nextIndex] + ((screenExtraSize / 2))), sf::Color::Red)
+								} });
+						}
+					}
 				}
 
 				//prepare markers to draw
@@ -1673,7 +1683,7 @@ void Simulation::Update(double elapsed) {
 				agentsGroups[f].agents[i].Update(&signs);
 				//check signs in view
 				bool recalculatePath = agentsGroups[f].CheckSignsInView(&signs);
-				if (recalculatePath) {
+				if (recalculatePath && useAStar) {
 					//need to recalculate path
 					AStarPath(&agentsGroups[f]);
 				}
@@ -1697,7 +1707,7 @@ void Simulation::Update(double elapsed) {
 				//calculate the movement vector
 				agentsGroups[f].agents[i].CalculaDirecaoM();
 				//calculate speed vector
-				agentsGroups[f].agents[i].CalculaVelocidade();
+				agentsGroups[f].agents[i].CalculaVelocidade(agentsGroups[f].position, agentsGroups[f].GetHofstede().GetMeanCohesion(), elapsed);
 
 				//now, we check if agent is stuck with another agent
 				//if so, change places
@@ -1791,7 +1801,9 @@ void Simulation::Update(double elapsed) {
 							}*/
 
 							//need to recalculate path
-							AStarPath(&agentsGroups[f]);
+							if (useAStar) {
+								AStarPath(&agentsGroups[f]);
+							}
 						}//else, just remove it
 						else {
 							std::cout << agentsGroups[f].agents[i].name << " arrived at goal " << agentsGroups[f].go[0]->name << "\n";
@@ -1800,7 +1812,9 @@ void Simulation::Update(double elapsed) {
 							agentsGroups[f].desire.erase(agentsGroups[f].desire.begin());
 
 							//need to recalculate path
-							AStarPath(&agentsGroups[f]);
+							if (useAStar) {
+								AStarPath(&agentsGroups[f]);
+							}
 
 							for (int j = 0; j < agentsGroups[f].agents.size(); j++) {
 								if (agentsGroups[f].pathX.size() == 0) {
@@ -2638,27 +2652,28 @@ void Simulation::ChangeLookingFor(Goal* changeLF) {
 	//while i have an obstacle on the way
 	while (pCollider) {
 		//generate the new position
-
 		//choose a new random node
-		int index = (int)RandomFloat(0, graphNodesPos.size()-1);
-		changeLF->posX = graphNodesPos[index].x;
-		changeLF->posY = 0;
-		changeLF->posZ = graphNodesPos[index].z;
-		break;
-
-		/*float x = (int)RandomFloat(0, scenarioSizeX);
-		float z = (int)RandomFloat(0, scenarioSizeZ);
-
-		//check if it is not inside an obstacle
-		bool pCollider = InsideObstacle(x, 0, z);
-
-		//if not, new looking for!
-		if (!pCollider) {
-			changeLF->posX = x;
+		if (useAStar) {
+			int index = (int)RandomFloat(0, graphNodesPos.size() - 1);
+			changeLF->posX = graphNodesPos[index].x;
 			changeLF->posY = 0;
-			changeLF->posZ = z;
+			changeLF->posZ = graphNodesPos[index].z;
 			break;
-		}*/
+		}else{
+			float x = (int)RandomFloat(0, scenarioSizeX);
+			float z = (int)RandomFloat(0, scenarioSizeZ);
+
+			//check if it is not inside an obstacle
+			bool pCollider = InsideObstacle(x, 0, z);
+
+			//if not, new looking for!
+			if (!pCollider) {
+				changeLF->posX = x;
+				changeLF->posY = 0;
+				changeLF->posZ = z;
+				break;
+			}
+		}
 	}
 }
 
@@ -2846,7 +2861,9 @@ void Simulation::UnlockAgent(Agent* agentToUnlock) {
 			std::cout << agentToUnlock->name << " new position: " << x << " -- " << z << "\n";
 
 			//need to recalculate path
-			AStarPath(&agentsGroups[agentToUnlock->groupIndex]);
+			if (useAStar) {
+				AStarPath(&agentsGroups[agentToUnlock->groupIndex]);
+			}
 
 			//his next goal
 			if (agentsGroups[agentToUnlock->groupIndex].pathX.size() > 0) {

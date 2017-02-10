@@ -161,6 +161,7 @@
     <ClInclude Include="edge.h" />
     <ClInclude Include="Goal.h" />
     <ClInclude Include="fsa.h" />
+    <ClInclude Include="Hofstede.h" />
     <ClInclude Include="Marker.h" />
     <ClInclude Include="Sign.h" />
     <ClInclude Include="Simulation.h" />
@@ -177,6 +178,7 @@
     <ClCompile Include="Cell.cpp" />
     <ClCompile Include="delaunay.cpp" />
     <ClCompile Include="Goal.cpp" />
+    <ClCompile Include="Hofstede.cpp" />
     <ClCompile Include="Marker.cpp" />
     <ClCompile Include="Sign.cpp" />
     <ClCompile Include="Simulation.cpp" />

@@ -88,6 +88,10 @@ class Simulation
 		std::vector<Sign> signs;
 		//quantity of groups that agents will form. If it is zero, means no groups will be used (like groups = false), therefore, each agent will be alone in a group
 		int qntGroups;
+		//using A*?
+		bool useAStar;
+		//using Hofstede?
+		bool useHofstede;
 
 		//all obstacles
 		std::vector<std::vector<float>> obstaclesX;

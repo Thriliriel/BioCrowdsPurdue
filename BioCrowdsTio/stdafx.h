@@ -33,6 +33,7 @@ typedef struct { float x, y, z; } Vector3;
 #include "Sign.h"
 #include "Marker.h"
 #include "Cell.h"
+#include "Hofstede.h"
 #include "Agent.h"
 #include "AgentGroup.h"
 #include "vector2.h"

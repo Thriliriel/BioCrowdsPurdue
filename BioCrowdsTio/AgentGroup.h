@@ -18,8 +18,13 @@ class AgentGroup
 		//agents A* path
 		std::vector<float> pathX;
 		std::vector<float> pathZ;
+
+	//private attributes
+	private:
 		//max speed
 		float maxSpeed;
+		//Hofstede values
+		Hofstede hofstede;
 
 	//public methods
 	public:
@@ -29,6 +34,10 @@ class AgentGroup
 		bool ReorderGoals();
 		bool CheckSignsInView(std::vector<Sign>* allSigns);
 		void ChangePath();
+		float GetMaxSpeed();
+		void SetMaxSpeed(float value);
+		Hofstede GetHofstede();
+		void SetHofstede(Hofstede value);
 
 	//private methods
 	private:

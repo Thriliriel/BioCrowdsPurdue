@@ -69,9 +69,9 @@ class Agent
 		void Start();
 		void Update(std::vector<Sign>* allSigns);
 		void ClearAgent();
-		void Caminhe(float tempo);
+		void Caminhe(float time);
 		void CalculaDirecaoM();
-		void CalculaVelocidade();
+		void CalculaVelocidade(Vector3 groupCenter, float cohesion, float time);
 		void FindNearAuxins(float cellRadius, std::vector<Cell>* allCells, std::vector<Agent>* allAgents, float worldSizeX, float worldSizeZ);
 		Cell* GetCell();
 		void SetCell(Cell* newCell);
