@@ -16,8 +16,7 @@ class AgentGroup
 		//goals desire
 		std::vector<float> desire;
 		//agents A* path
-		std::vector<float> pathX;
-		std::vector<float> pathZ;
+		std::vector<Vector3> path;
 
 	//private attributes
 	private:
@@ -41,6 +40,5 @@ class AgentGroup
 
 	//private methods
 	private:
-		float Distance(float x1, float y1, float z1, float x2, float y2, float z2);
 		void Interaction(Sign *sign, float distance, int index);
 };

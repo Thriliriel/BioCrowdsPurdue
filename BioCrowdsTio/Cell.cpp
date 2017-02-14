@@ -8,14 +8,12 @@ Cell::Cell()
 }
 
 //initialize with its new position
-Cell::Cell(float newPosX, float newPosY, float newPosZ, std::string newName)
+Cell::Cell(Vector3 newPosition, std::string newName)
 {
 	//default: can pass
 	canPass = 1;
 
-	posX = newPosX;
-	posY = newPosY;
-	posZ = newPosZ;
+	position = newPosition;
 	name = newName;
 }
 

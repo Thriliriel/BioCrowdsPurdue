@@ -5,9 +5,7 @@ class Cell
 	public:
 		 std::vector<Marker> myAuxins;
 		 //position
-		 float posX;
-		 float posY;
-		 float posZ;
+		 Vector3 position;
 		 //name
 		 std::string name;
 		 //can i pass this cell?
@@ -18,7 +16,7 @@ class Cell
 	//public methods
 	public:
 		Cell();
-		Cell(float newPosX, float newPosY, float newPosZ, std::string newName);
+		Cell(Vector3 newPosition, std::string newName);
 		~Cell();
 		void StartList();
 		void AddAuxin(Marker auxin);

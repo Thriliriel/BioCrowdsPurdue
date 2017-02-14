@@ -16,8 +16,6 @@
 
 //node struct - position x, position z, triangle vertices position
 typedef struct { float x, z, v1X, v1Z, v2X, v2Z, v3X, v3Z; } Node;
-//vector3 struct - position x, position y, position z
-typedef struct { float x, y, z; } Vector3;
 
 #include <stdio.h>
 #include <string>
@@ -29,6 +27,7 @@ typedef struct { float x, y, z; } Vector3;
 #include <vector>
 #include <math.h>
 #include <time.h>
+#include "Vector3.h"
 #include "Goal.h"
 #include "Sign.h"
 #include "Marker.h"

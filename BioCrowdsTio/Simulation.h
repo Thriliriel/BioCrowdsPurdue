@@ -94,8 +94,7 @@ class Simulation
 		bool useHofstede;
 
 		//all obstacles
-		std::vector<std::vector<float>> obstaclesX;
-		std::vector<std::vector<float>> obstaclesZ;
+		std::vector<std::vector<Vector3>> obstacles;
 		std::vector<std::vector<int>> allTriangles;
 
 	//public methods
@@ -104,6 +103,7 @@ class Simulation
 		Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int argcp, char **argv);
 		~Simulation();
 		void Update(double elapsed);
+		static float Distance(Vector3 start, Vector3 end);
 
 	//private methods
 	private:
@@ -113,8 +113,9 @@ class Simulation
 		void LoadChainSimulation();
 		void LoadConfigFile();
 		void LoadCellsAuxins();
-		void DrawGoal(std::string goalName, float goalPositionX, float goalPositionY, float goalPositionZ, bool isLF);
-		void DrawSign(float signPositionX, float signPositionY, float signPositionZ, Goal* signGoal, float signAppeal);
+		void LoadObstacleFile();
+		void DrawGoal(std::string goalName, Vector3 goalPosition, bool isLF);
+		void DrawSign(Vector3 signPosition, Goal* signGoal, float signAppeal);
 		void DrawCells();
 		void PlaceAuxins();
 		void PlaceAuxinsAsGrid();
@@ -122,17 +123,17 @@ class Simulation
 		void SaveExitFile();
 		void SaveAgentsGoalFile(std::string agentName, std::string goalName);
 		void DrawObstacles();
-		void DrawObstacle(std::vector<float> verticesX, std::vector<float> verticesY, std::vector<float> verticesZ, std::vector<int> triangles);
+		void DrawObstacle(std::vector<Vector3> vertices, std::vector<int> triangles);
 		void CheckGroupVertices();
 		void ReadOBJFile();
 		void GenerateLookingFor();
+		Vector3 GeneratePosition(int groupIndex, bool useCenter);
 		void ChangeLookingFor(Goal* changeLF);
-		float Distance(float x1, float y1, float z1, float x2, float y2, float z2);
 		void Split(const std::string &s, char delim, std::vector<std::string> &elems);
 		float RandomFloat(float min, float max);
 		bool Contains(std::vector<float> arrayToSearch, float needle);
 		bool Contains(std::vector<float> arrayToSearch, std::vector<float> arrayToSearch2, float needle, float needle2);
-		bool InsideObstacle(float pX, float pY, float pZ);
+		bool InsideObstacle(Vector3 p);
 		void UnlockAgent(Agent* agentToUnlock);
 		void AStarPath(AgentGroup* agentPath);
 		void CalculateMeanPoints(std::vector<Triangle>* triangles);

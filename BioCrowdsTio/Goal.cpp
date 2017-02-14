@@ -6,11 +6,9 @@ Goal::Goal()
 	isTaken = false;
 }
 
-Goal::Goal(std::string newName, float newPosX, float newPosY, float newPosZ, bool isLF = false) {
+Goal::Goal(std::string newName, Vector3 newPosition, bool isLF = false) {
 	name = newName;
-	posX = newPosX;
-	posY = newPosY;
-	posZ = newPosZ;
+	position = newPosition;
 	isLookingFor = isLF;
 	isTaken = false;
 }

@@ -4,9 +4,7 @@ class Sign
 	//public attributes
 	public:
 		//position
-		float posX;
-		float posY;
-		float posZ;
+		Vector3 position;
 
 	//private attributes
 	private:
@@ -18,7 +16,7 @@ class Sign
 	//public methods
 	public:
 		Sign();
-		Sign(float newPosX, float newPosY, float newPosZ);
+		Sign(Vector3 newPosition);
 		~Sign();
 		float GetAppeal();
 		void SetAppeal(float newAppeal);

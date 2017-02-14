@@ -6,9 +6,7 @@ class Marker
 		//is auxin taken?
 		bool taken = false;
 		//position
-		float posX;
-		float posY;
-		float posZ;
+		Vector3 position;
 		//name
 		std::string name;
 
@@ -23,12 +21,10 @@ class Marker
 	//public methods
 	public:
 		Marker();
-		Marker(float newPosX, float newPosY, float newPosZ);
+		Marker(Vector3 newPosition);
 		~Marker();
 		void ResetAuxin();
 		float GetMinDistance();
 		void SetMinDistance(float minDistance);
-		//Agent* GetAgent();
-		//void SetAgent(Agent *newAgent);
 };
 

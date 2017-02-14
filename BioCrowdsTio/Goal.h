@@ -4,9 +4,7 @@ class Goal
 	//public attributes
 	public:
 		//position
-		float posX;
-		float posY;
-		float posZ;
+		Vector3 position;
 		//name
 		std::string name;
 		//is it looking for?
@@ -17,7 +15,7 @@ class Goal
 	//public methods
 	public:
 		Goal();
-		Goal(std::string newName, float newPosX, float newPosY, float newPosZ, bool isLF);
+		Goal(std::string newName, Vector3 newPosition, bool isLF);
 		~Goal();
 };
 

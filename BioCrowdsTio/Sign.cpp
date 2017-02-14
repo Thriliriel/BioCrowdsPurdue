@@ -4,10 +4,8 @@ Sign::Sign()
 {
 }
 
-Sign::Sign(float newPosX, float newPosY, float newPosZ) {
-	posX = newPosX;
-	posY = newPosY;
-	posZ = newPosZ;
+Sign::Sign(Vector3 newPosition) {
+	position = newPosition;
 }
 
 Sign::~Sign()

@@ -84,7 +84,7 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 		CheckGroupVertices();
 
 		//new obstacles
-		//DrawObstacles();
+		DrawObstacles();
 		//std::cout << verticesObstaclesX.size() << " -- " << verticesObstaclesZ.size() << "\n";
 
 		//std::cout << "Qnt Obstacles: " << obstacles.size() << "\n";
@@ -99,14 +99,15 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 		std::cout << "Qnt Cells: " << cells.size() << "\n";
 
 		//instantiante some goals
-		/*DrawGoal("Restaurant", 3, 0, 18, false);
-		DrawGoal("Theater", 27, 0, 17, false);
-		DrawGoal("Stadium", 5, 0, 3, false);
-		DrawGoal("AppleStore", 25, 0, 5, false);*/
-		DrawGoal("Goal0", 50, 0, 50, false);
-		DrawGoal("Goal1", 42, 0, 30, false);
-		DrawGoal("Goal2", 5, 0, 80, false);
-		DrawGoal("Goal3", 92, 0, 16, false);
+		Vector3 goalPos;
+		goalPos.x = 50; goalPos.y = 0; goalPos.z = 50;
+		DrawGoal("Goal0", goalPos, false);
+		goalPos.x = 42; goalPos.y = 0; goalPos.z = 30;
+		DrawGoal("Goal1", goalPos, false);
+		goalPos.x = 5; goalPos.y = 0; goalPos.z = 80;
+		DrawGoal("Goal2", goalPos, false);
+		goalPos.x = 92; goalPos.y = 0; goalPos.z = 16;
+		DrawGoal("Goal3", goalPos, false);
 
 		//generate all looking for states
 		GenerateLookingFor();
@@ -114,13 +115,9 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 		//instantiate the goal's signs
 		for (int p = 0; p < goals.size(); p++) {
 			if (!goals[p].isLookingFor) {
-				DrawSign(goals[p].posX, goals[p].posY, goals[p].posZ, &goals[p], 1);
+				DrawSign(goals[p].position, &goals[p], 1);
 			}
 		}
-
-		//instantiante some signs
-		DrawSign(15, 0, 10, &goals[0], 0.7);
-		DrawSign(23, 0, 11, &goals[2], 0.9);
 
 		//std::cout << goals.size() << " -- " << signs.size();
 
@@ -135,8 +132,7 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 		{
 			//sort out a cell
 			int cellIndex = (int)round(RandomFloat(0, cells.size() - 0.1f));
-			float x;
-			float z;
+			Vector3 newPosition;
 			bool pCollider = true;
 			int tries = 0;
 
@@ -147,38 +143,40 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 					tries = 0;
 				}
 				//generate the group position
-				x = RandomFloat(cells[cellIndex].posX - cellRadius, cells[cellIndex].posX + cellRadius);
-				z = RandomFloat(cells[cellIndex].posZ - cellRadius, cells[cellIndex].posZ + cellRadius);
-				pCollider = InsideObstacle(x, 0, z);
+				newPosition.x = RandomFloat(cells[cellIndex].position.x - cellRadius, cells[cellIndex].position.x + cellRadius);
+				newPosition.y = 0;
+				newPosition.z = RandomFloat(cells[cellIndex].position.z - cellRadius, cells[cellIndex].position.z + cellRadius);
+				pCollider = InsideObstacle(newPosition);
 				if (pCollider) {
 					tries++;
 				}
 			}
 
 			//new group center position
-			Vector3 newPosition;
-			newPosition.x = x;
-			newPosition.y = 0;
-			newPosition.z = z;
-
 			//varying group max speed: 0.5f * (i + 1) * (i + 1)
 			AgentGroup newAgentGroup(newPosition, &cells[cellIndex], 1.5f);
 
-			//calculate the group hofstede
-			//start the hofstede
-			Hofstede hof(1);
-			//Hofstede::CalculateHofstede(int pdi, int mas, int lto, int ing)
-			hof.CalculateHofstede((i + 1) * (i + 1) * (i + 1) * (i + 1) * (i + 1) * (i + 1), 1, 1, 1);
+			//if using hofstede
+			if (useHofstede) {
+				//calculate the group hofstede
+				//start the hofstede
+				Hofstede hof(1);
+				//Hofstede::CalculateHofstede(int pdi, int mas, int lto, int ing)
+				hof.CalculateHofstede((i + 1) * (i + 1) * (i + 1) * (i + 1) * (i + 1) * (i + 1), 1, 1, 1);
 
-			//static values for cohesion
-			if (i == 0) {
-				hof.SetMeanCohesion(0.5f);
-			}
+				//static values for cohesion
+				if (i == 0) {
+					hof.SetMeanCohesion(0.5f);
+				}
+				else {
+					hof.SetMeanCohesion(2.5f);
+				}
+
+				newAgentGroup.SetHofstede(hof);
+			}//else, start it empty
 			else {
-				hof.SetMeanCohesion(2.5f);
+				newAgentGroup.SetHofstede(Hofstede());
 			}
-
-			newAgentGroup.SetHofstede(hof);
 
 			//agent group goals
 			for (int j = 0; j < goals.size(); j++)
@@ -223,8 +221,22 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 		//instantiate qntAgents Agents
 		for (int i = 0; i < qntAgents; i++)
 		{
-			//sort out a group for this agent
-			int groupIndex = (int)RandomFloat(0, agentsGroups.size() - 0.128f);
+			int groupIndex = 0;
+			//we need to make sure that all groups have, at least, 1 agent
+			bool alreadyOne = true;
+			for (int j = 0; j < agentsGroups.size(); j++) {
+				if (agentsGroups[j].agents.size() == 0) {
+					groupIndex = j;
+					alreadyOne = false;
+					break;
+				}
+			}
+
+			//if all groups already have at least 1 agent, sort out
+			if (alreadyOne) {
+				//sort out a group for this agent
+				groupIndex = (int)RandomFloat(0, agentsGroups.size() - 0.128f);
+			}
 
 			//if we are not finding space to set the agent, thats it
 			if (doNotFreeze > qntAgents) {
@@ -238,52 +250,24 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 			}
 
 			//generate the agent position
-			float x = RandomFloat(agentsGroups[groupIndex].position.x - meanDist * 2, agentsGroups[groupIndex].position.x + meanDist * 2);
-			float z = RandomFloat(agentsGroups[groupIndex].position.z - meanDist * 2, agentsGroups[groupIndex].position.z + meanDist * 2);
-
-			//see if there are agents in this radius. if not, instantiante
-			bool pCollider = false;
+			Vector3 newAgentPosition = GeneratePosition(groupIndex, !alreadyOne);
 			
-			for (int j = 0; j < agentsGroups[groupIndex].agents.size(); j++) {
-				if (Distance(x, 0, z, agentsGroups[groupIndex].agents[j].posX, agentsGroups[groupIndex].agents[j].posY, agentsGroups[groupIndex].agents[j].posZ) < meanDist) {
-					pCollider = true;
-					break;
-				}
-			}
+			Agent newAgent(newAgentPosition, "agent" + std::to_string(i));
+			//agent cell
+			newAgent.SetCell(agentsGroups[groupIndex].cell);
+			//agent radius
+			newAgent.agentRadius = agentRadius;
+			//group max speed
+			newAgent.maxSpeed = agentsGroups[groupIndex].GetMaxSpeed();
 
-			//even so, if we are an obstacle, cannot instantiate either
-			//just need to check for obstacle if found no player, otherwise it will not be instantiated anyway
-			if (!pCollider) {
-				pCollider = InsideObstacle(x, 0, z);
-			}
-
-			//if found a player in the radius, do not instantiante. try again
-			if (pCollider)
-			{
-				//try again
-				i--;
-				doNotFreeze++;
-				continue;
-			}
-			else
-			{
-				Agent newAgent(x, 0, z, "agent" + std::to_string(i));
-				//agent cell
-				newAgent.SetCell(agentsGroups[groupIndex].cell);
-				//agent radius
-				newAgent.agentRadius = agentRadius;
-				//group max speed
-				newAgent.maxSpeed = agentsGroups[groupIndex].GetMaxSpeed();
-
-				//add to group
-				newAgent.groupIndex = groupIndex;
-				agentsGroups[groupIndex].agents.push_back(newAgent);
-			}
+			//add to group
+			newAgent.groupIndex = groupIndex;
+			agentsGroups[groupIndex].agents.push_back(newAgent);
 		}
 	}
 	for (int i = 0; i < agentsGroups.size(); i++) {
 		for (int j = 0; j < agentsGroups[i].agents.size(); j++) {
-			std::cout << agentsGroups[i].agents[j].name << ": PosX - " << agentsGroups[i].agents[j].posX << " -- PosZ - " << agentsGroups[i].agents[j].posZ << "\n";
+			std::cout << agentsGroups[i].agents[j].name << ": PosX - " << agentsGroups[i].agents[j].position.x << " -- PosZ - " << agentsGroups[i].agents[j].position.z << "\n";
 		}
 	}
 	/*for (int i = 0; i < agents[0].go.size(); i++) {
@@ -306,9 +290,9 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 		points.push_back(Vec2f(scenarioSizeX, 0));
 
 		//add the points
-		for (int o = 0; o < obstaclesX.size(); o++) {
-			for (int q = 0; q < obstaclesX[o].size(); q++) {
-				points.push_back(Vec2f(obstaclesX[o][q], obstaclesZ[o][q]));
+		for (int o = 0; o < obstacles.size(); o++) {
+			for (int q = 0; q < obstacles[o].size(); q++) {
+				points.push_back(Vec2f(obstacles[o][q].x, obstacles[o][q].z));
 			}
 		}
 
@@ -359,7 +343,11 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 			float distance = scenarioSizeX;
 			int index = -1;
 			for (int g = 0; g < graphNodesPos.size(); g++) {
-				float thisDistance = Distance(goals[i].posX, goals[i].posY, goals[i].posZ, graphNodesPos[g].x, 0, graphNodesPos[g].z);
+				Vector3 graphPos;
+				graphPos.x = graphNodesPos[g].x;
+				graphPos.y = 0;
+				graphPos.z = graphNodesPos[g].z;
+				float thisDistance = Distance(goals[i].position, graphPos);
 				if (thisDistance < distance) {
 					index = g;
 					distance = thisDistance;
@@ -369,15 +357,15 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 			if (index > -1) {
 				//need to reposition his sign too
 				for (int s = 0; s < signs.size(); s++) {
-					if (signs[s].posX == goals[i].posX && signs[s].posZ == goals[i].posZ) {
-						signs[s].posX = graphNodesPos[index].x;
-						signs[s].posZ = graphNodesPos[index].z;
+					if (signs[s].position.x == goals[i].position.x && signs[s].position.z == goals[i].position.z) {
+						signs[s].position.x = graphNodesPos[index].x;
+						signs[s].position.z = graphNodesPos[index].z;
 						break;
 					}
 				}
 
-				goals[i].posX = graphNodesPos[index].x;
-				goals[i].posZ = graphNodesPos[index].z;
+				goals[i].position.x = graphNodesPos[index].x;
+				goals[i].position.z = graphNodesPos[index].z;
 			}
 		}
 
@@ -386,15 +374,11 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 
 			//start default values for each agent
 			for (int j = 0; j < agentsGroups[i].agents.size(); j++) {
-				if (agentsGroups[i].pathX.size() == 0) {
-					agentsGroups[i].agents[j].goalX = agentsGroups[i].go[0]->posX;
-					agentsGroups[i].agents[j].goalY = agentsGroups[i].go[0]->posY;
-					agentsGroups[i].agents[j].goalZ = agentsGroups[i].go[0]->posZ;
+				if (agentsGroups[i].path.size() == 0) {
+					agentsGroups[i].agents[j].goal = agentsGroups[i].go[0]->position;
 				}
 				else {
-					agentsGroups[i].agents[j].goalX = agentsGroups[i].pathX[0];
-					agentsGroups[i].agents[j].goalY = agentsGroups[i].go[0]->posY;
-					agentsGroups[i].agents[j].goalZ = agentsGroups[i].pathZ[0];
+					agentsGroups[i].agents[j].goal = agentsGroups[i].path[0];
 				}
 
 				agentsGroups[i].agents[j].ClearAgent();
@@ -476,16 +460,14 @@ void Simulation::DefaultValues() {
 	//what is the obstacle scale
 	obstacleScale = 0.1;
 	//obstacleScale = 1;
-	//start the frame count at 24
-	//frameCount = 24;
 	//do we plot the scene?
 	plot = true;
 	//default node size
 	nodeSize = 1;
 	//quantity of groups that agents will form. If it is zero, means no groups will be used (like groups = false), therefore, each agent will be alone in a group
-	qntGroups = 2;
+	qntGroups = 0;
 	//using A*?
-	useAStar = false;
+	useAStar = true;
 	//using Hofstede?
 	useHofstede = false;
 }
@@ -575,16 +557,16 @@ void Simulation::StartSimulation(int argcp, char **argv) {
 							} });
 					}
 				}else{
-					for (int o = 0; o < obstaclesX.size(); o++) {
-						for (int q = 0; q < obstaclesX[o].size(); q++) {
+					for (int o = 0; o < obstacles.size(); o++) {
+						for (int q = 0; q < obstacles[o].size(); q++) {
 							int nextIndex = q + 1;
-							if (nextIndex >= obstaclesX[o].size()) {
+							if (nextIndex >= obstacles[o].size()) {
 								nextIndex = 0;
 							}
 
 							linesObstacles.push_back({ {
-									sf::Vertex(sf::Vector2f(obstaclesX[o][q] + ((screenExtraSize / 2)), obstaclesZ[o][q] + ((screenExtraSize / 2))), sf::Color::Red),
-									sf::Vertex(sf::Vector2f(obstaclesX[o][nextIndex] + ((screenExtraSize / 2)), obstaclesZ[o][nextIndex] + ((screenExtraSize / 2))), sf::Color::Red)
+									sf::Vertex(sf::Vector2f(obstacles[o][q].x + ((screenExtraSize / 2)), obstacles[o][q].z + ((screenExtraSize / 2))), sf::Color::Red),
+									sf::Vertex(sf::Vector2f(obstacles[o][nextIndex].x + ((screenExtraSize / 2)), obstacles[o][nextIndex].z + ((screenExtraSize / 2))), sf::Color::Red)
 								} });
 						}
 					}
@@ -612,7 +594,7 @@ void Simulation::StartSimulation(int argcp, char **argv) {
 				for (int b = 0; b < agentsGroups.size(); b++) {
 					for (int a = 0; a < agentsGroups[b].agents.size(); a++) {
 						sf::RectangleShape *c1 = new sf::RectangleShape(sf::Vector2f(1, 1));
-						c1->setPosition(agentsGroups[b].agents[a].posX + ((screenExtraSize / 2)), agentsGroups[b].agents[a].posZ + ((screenExtraSize / 2)));
+						c1->setPosition(agentsGroups[b].agents[a].position.x + ((screenExtraSize / 2)), agentsGroups[b].agents[a].position.z + ((screenExtraSize / 2)));
 						squaresAgents.push_back(c1);
 					}
 				}
@@ -622,7 +604,7 @@ void Simulation::StartSimulation(int argcp, char **argv) {
 					//if it is not looking for
 					if (!goals[a].isLookingFor) {
 						sf::RectangleShape *c1 = new sf::RectangleShape(sf::Vector2f(1, 1));
-						c1->setPosition(goals[a].posX + ((screenExtraSize / 2)), goals[a].posZ + ((screenExtraSize / 2)));
+						c1->setPosition(goals[a].position.x + ((screenExtraSize / 2)), goals[a].position.z + ((screenExtraSize / 2)));
 						sf::Color *color = new sf::Color(0, 255, 0, 255);
 						c1->setFillColor(*color);
 						squaresGoals.push_back(c1);
@@ -632,9 +614,9 @@ void Simulation::StartSimulation(int argcp, char **argv) {
 				//prepare signs to draw
 				for (int a = 0; a < signs.size(); a++) {
 					//if it is not a goal sign
-					if (signs[a].posX != signs[a].GetGoal()->posX && signs[a].posZ != signs[a].GetGoal()->posZ) {
+					if (signs[a].position.x != signs[a].GetGoal()->position.x && signs[a].position.z != signs[a].GetGoal()->position.z) {
 						sf::RectangleShape *c1 = new sf::RectangleShape(sf::Vector2f(1, 1));
-						c1->setPosition(signs[a].posX + ((screenExtraSize / 2)), signs[a].posZ + ((screenExtraSize / 2)));
+						c1->setPosition(signs[a].position.x + ((screenExtraSize / 2)), signs[a].position.z + ((screenExtraSize / 2)));
 						sf::Color *color = new sf::Color(0, 0, 255, 255);
 						c1->setFillColor(*color);
 						squaresSigns.push_back(c1);
@@ -760,7 +742,7 @@ void Simulation::EndSimulation() {
 			//instantiate the goal's signs
 			for (int p = 0; p < goals.size(); p++) {
 				if (!goals[p].isLookingFor) {
-					DrawSign(goals[p].posX, goals[p].posY, goals[p].posZ, &goals[p], 1);
+					DrawSign(goals[p].position, &goals[p], 1);
 				}
 			}
 
@@ -895,6 +877,9 @@ void Simulation::LoadChainSimulation() {
 void Simulation::LoadConfigFile() {
 	std::string line;
 
+	//change his name
+	int agentNameCounter = 0;
+
 	//schedule file, with agents and their schedules
 	std::ifstream theReader;
 	theReader.open(scheduleFilename);
@@ -917,33 +902,35 @@ void Simulation::LoadConfigFile() {
 				std::vector<std::string> entries;
 				Split(line, ' ', entries);
 
-				float newPositionX = std::stof(entries[0]);
-				float newPositionY = 0;
-				float newPositionZ = std::stof(entries[1]);
+				int qntAgentsGroup = std::stoi(entries[0]);
+				Vector3 newPosition;
+				newPosition.x = std::stof(entries[1]);
+				newPosition.y = 0;
+				newPosition.z = std::stof(entries[2]);
 				float grain = 1;
 				float originalGrain = grain;
 
 				//check if there is an obstacle in this position
-				while (InsideObstacle(newPositionX, newPositionY, newPositionZ)) {
+				while (InsideObstacle(newPosition)) {
 					//if there is an obstacle, test with new positions
-					if (!InsideObstacle(newPositionX + grain, newPositionY, newPositionZ))
+					if (!InsideObstacle(Vector3(newPosition.x + grain, newPosition.y, newPosition.z)))
 					{
-						newPositionX += grain;
+						newPosition.x += grain;
 						break;
 					}
-					else if (!InsideObstacle(newPositionX, newPositionY, newPositionZ - grain))
+					else if (!InsideObstacle(Vector3(newPosition.x, newPosition.y, newPosition.z - grain)))
 					{
-						newPositionZ -= grain;
+						newPosition.z -= grain;
 						break;
 					}
-					else if (!InsideObstacle(newPositionX - grain, newPositionY, newPositionZ))
+					else if (!InsideObstacle(Vector3(newPosition.x - grain, newPosition.y, newPosition.z)))
 					{
-						newPositionX -= grain;
+						newPosition.x -= grain;
 						break;
 					}
-					else if (!InsideObstacle(newPositionX, newPositionY, newPositionZ + grain))
+					else if (!InsideObstacle(Vector3(newPosition.x, newPosition.y, newPosition.z + grain)))
 					{
-						newPositionZ += grain;
+						newPosition.z += grain;
 						break;
 					}
 					else
@@ -953,16 +940,13 @@ void Simulation::LoadConfigFile() {
 					}
 				}
 
-				//change his name
-				int agentName = lineCount - 2;
-
 				//find the cell in x - z coords, using his name
 				//use the rest of division by cellRadius*2
-				int restDivisionX = (int)((int)newPositionX % (int)(cellRadius * 2));
-				int restDivisionZ = (int)((int)newPositionZ % (int)(cellRadius * 2));
+				int restDivisionX = (int)((int)newPosition.x % (int)(cellRadius * 2));
+				int restDivisionZ = (int)((int)newPosition.z % (int)(cellRadius * 2));
 				int cellIndex = -1;
-				int nameX = (int)(newPositionX - restDivisionX);
-				int nameZ = (int)(newPositionZ - restDivisionZ);
+				int nameX = (int)(newPosition.x - restDivisionX);
+				int nameZ = (int)(newPosition.z - restDivisionZ);
 				for (int c = 0; c < cells.size(); c++) {
 					if (cells[c].name == "cell" + std::to_string((float)nameX) + "-" + std::to_string((float)nameZ)) {
 						cellIndex = c;
@@ -970,61 +954,96 @@ void Simulation::LoadConfigFile() {
 					}
 				}
 
-				//instantiate new agent
-				Agent newAgent(newPositionX, newPositionY, newPositionZ, "agent" + std::to_string(agentName));
-				//agent cell
 				if (cellIndex > -1) {
-					newAgent.SetCell(&cells[cellIndex]);
+					//new group center position
+					AgentGroup newAgentGroup(newPosition, &cells[cellIndex], 1.5f);
+
+					//if using hofstede
+					if (useHofstede) {
+						//calculate the group hofstede
+						//start the hofstede
+						Hofstede hof(1);
+						//Hofstede::CalculateHofstede(int pdi, int mas, int lto, int ing)
+						//@TODO: bring from file
+						hof.CalculateHofstede(1, 1, 1, 1);
+
+						newAgentGroup.SetHofstede(hof);
+					}//else, start it empty
+					else {
+						newAgentGroup.SetHofstede(Hofstede());
+					}
+
+					//set his goals
+					//go 2 in 2, since it is a pair between goal and intention to that goal
+					for (int j = 3; j < entries.size(); j = j + 2)
+					{
+						//there is an empty space on the end of the line, dont know why.
+						if (entries[j] == "") continue;
+
+						//try to find this goal object
+						//the file start at 1, so we adapt since we start at 0
+						if (std::stoi(entries[j]) <= goals.size())
+						{
+							//add a goal
+							newAgentGroup.go.push_back(&goals[std::stoi(entries[j])-1]);
+							//add intention
+							newAgentGroup.intentions.push_back(std::stof(entries[j + 1]));
+							//add a random desire
+							newAgentGroup.desire.push_back(RandomFloat(0, 1));
+						}
+					}
+
+					//get the first non taken looking for state
+					for (int j = 0; j < goals.size(); j++)
+					{
+						//if goal is looking for and is free...
+						if (goals[j].isLookingFor && !goals[j].isTaken) {
+							//add a goal
+							newAgentGroup.go.push_back(&goals[j]);
+							//add intention 0.8
+							newAgentGroup.intentions.push_back(0.8);
+							//add desire 1
+							newAgentGroup.desire.push_back(1);
+							//this looking for goal is taken now
+							goals[j].isTaken = true;
+							//already have one, get out!
+							break;
+						}
+					}
+
+					//reorder following intentions
+					newAgentGroup.ReorderGoals();
+
+					agentsGroups.push_back(newAgentGroup);
+
+					//create the agents
+					for (int i = 0; i < qntAgentsGroup; i++) {
+						bool alreadyOne = true;
+						if (i == 0) {
+							alreadyOne = false;
+						}
+						Vector3 newAgentPosition = GeneratePosition(agentsGroups.size()-1, !alreadyOne);
+
+						Agent newAgent(newAgentPosition, "agent" + std::to_string(agentNameCounter));
+						//agent cell
+						newAgent.SetCell(agentsGroups[agentsGroups.size() - 1].cell);
+						//agent radius
+						newAgent.agentRadius = agentRadius;
+						//group max speed
+						newAgent.maxSpeed = agentsGroups[agentsGroups.size() - 1].GetMaxSpeed();
+
+						//add to group
+						newAgent.groupIndex = agentsGroups.size() - 1;
+						agentsGroups[agentsGroups.size() - 1].agents.push_back(newAgent);
+
+						agentNameCounter++;
+					}
 				}
 				else {
-					std::cout << newAgent.name << ": " << "Celula nao encontrada! CellNameX: " + std::to_string((float)nameX) + " -- CellNameZ: "
+					std::cout << ": " << "Celula nao encontrada! CellNameX: " + std::to_string((float)nameX) + " -- CellNameZ: "
 						+ std::to_string((float)nameZ) + "\n";
+					break;
 				}
-				//agent radius
-				newAgent.agentRadius = agentRadius;
-
-				//set his goals
-				//go 2 in 2, since it is a pair between goal and intention to that goal
-				for (int j = 2; j < entries.size(); j = j + 2)
-				{
-					//there is an empty space on the end of the line, dont know why.
-					if (entries[j] == "") continue;
-
-					//try to find this goal object
-					//the file start at 1, so we adapt since we start at 0
-					if (std::stoi(entries[j]) <= goals.size())
-					{
-						//add a goal
-						//newAgent.go.push_back(&goals[std::stoi(entries[j])-1]);
-						//add intention
-						//newAgent.intentions.push_back(std::stof(entries[j + 1]));
-						//add a random desire
-						//newAgent.AddDesire(RandomFloat(0, 1));
-					}
-				}
-
-				//get the first non taken looking for state
-				for (int j = 0; j < goals.size(); j++)
-				{
-					//if goal is looking for and is free...
-					if (goals[j].isLookingFor && !goals[j].isTaken) {
-						//add a goal
-						//newAgent.go.push_back(&goals[j]);
-						//add intention 0.8
-						//newAgent.intentions.push_back(0.8);
-						//add desire 1
-						//newAgent.AddDesire(1);
-						//this looking for goal is taken now
-						goals[j].isTaken = true;
-						//already have one, get out!
-						break;
-					}
-				}
-
-				//reorder following intentions
-				//newAgent.ReorderGoals();
-
-				//agents.push_back(newAgent);
 			}
 		}
 		lineCount++;
@@ -1057,22 +1076,20 @@ void Simulation::LoadConfigFile() {
 				Split(line, ' ', entries);
 
 				//sign position
-				float newPositionX = 0;
-				float newPositionY = 0;
-				float newPositionZ = 0;
+				Vector3 newPosition;
+				newPosition.x = newPosition.y = newPosition.z = 0;
 				//define position based on obstacle vertices
-				if (obstaclesX.size() > 0) {
-					if (obstaclesX.size() == 1)
+				if (obstacles.size() > 0) {
+					if (obstacles.size() == 1)
 					{
 						//check group vertices to find the corners
-						int ind = round(RandomFloat(0, obstaclesX[0].size()-1));
-						newPositionX = obstaclesX[0][ind];
-						newPositionZ = obstaclesZ[0][ind];
+						int ind = round(RandomFloat(0, obstacles[0].size()-1));
+						newPosition = obstacles[0][ind];
 						bool newPositionOK = true;
 
 						//check every sign
 						for (int p = 0; p < signs.size(); p++) {
-							if (signs[p].posX == newPositionX && signs[p].posZ == newPositionZ) {
+							if (signs[p].position.x == newPosition.x && signs[p].position.z == newPosition.z) {
 								newPositionOK = false;
 								break;
 							}
@@ -1081,15 +1098,14 @@ void Simulation::LoadConfigFile() {
 						//while newPosition is inside the already used positions, we try again
 						while (!newPositionOK)
 						{
-							ind = round(RandomFloat(0, obstaclesX[0].size()-1));
-							newPositionX = obstaclesX[0][ind];
-							newPositionZ = obstaclesZ[0][ind];
+							ind = round(RandomFloat(0, obstacles[0].size()-1));
+							newPosition = obstacles[0][ind];
 
 							newPositionOK = true;
 
 							//check every sign
 							for (int p = 0; p < signs.size(); p++) {
-								if (signs[p].posX == newPositionX && signs[p].posZ == newPositionZ) {
+								if (signs[p].position.x == newPosition.x && signs[p].position.z == newPosition.z) {
 									newPositionOK = false;
 									break;
 								}
@@ -1099,18 +1115,17 @@ void Simulation::LoadConfigFile() {
 					else
 					{
 						//sort out an obstacle
-						int obsInd = round(RandomFloat(0, obstaclesX.size() - 1));
+						int obsInd = round(RandomFloat(0, obstacles.size() - 1));
 						//sort out a vertice index for this obstacle
-						int ind = round(RandomFloat(0, obstaclesX[obsInd].size() - 1));
+						int ind = round(RandomFloat(0, obstacles[obsInd].size() - 1));
 
 						//new position
-						newPositionX = obstaclesX[0][ind];
-						newPositionZ = obstaclesZ[0][ind];
+						newPosition = obstacles[0][ind];
 						bool newPositionOK = true;
 
 						//check every sign
 						for (int p = 0; p < signs.size(); p++) {
-							if (signs[p].posX == newPositionX && signs[p].posZ == newPositionZ) {
+							if (signs[p].position.x == newPosition.x && signs[p].position.z == newPosition.z) {
 								newPositionOK = false;
 								break;
 							}
@@ -1120,18 +1135,17 @@ void Simulation::LoadConfigFile() {
 						while (!newPositionOK)
 						{
 							//sort out an obstacle
-							int obsInd = round(RandomFloat(0, obstaclesX.size() - 1));
+							int obsInd = round(RandomFloat(0, obstacles.size() - 1));
 							//sort out a vertice index for this obstacle
-							int ind = round(RandomFloat(0, obstaclesX[obsInd].size() - 1));
+							int ind = round(RandomFloat(0, obstacles[obsInd].size() - 1));
 
 							//new position
-							newPositionX = obstaclesX[0][ind];
-							newPositionZ = obstaclesZ[0][ind];
+							newPosition = obstacles[0][ind];
 							newPositionOK = true;
 
 							//check every sign
 							for (int p = 0; p < signs.size(); p++) {
-								if (signs[p].posX == newPositionX && signs[p].posZ == newPositionZ) {
+								if (signs[p].position.x == newPosition.x && signs[p].position.z == newPosition.z) {
 									newPositionOK = false;
 									break;
 								}
@@ -1145,7 +1159,9 @@ void Simulation::LoadConfigFile() {
 				//find its goal
 				for (int g = 0; g < goals.size(); g++) {
 					if (goals[g].name == signGoalName) {
-						DrawSign(newPositionX, newPositionY, newPositionZ, &goals[g], std::stof(entries[2]));
+						Vector3 signPos;
+						signPos = newPosition;
+						DrawSign(newPosition, &goals[g], std::stof(entries[2]));
 					}
 				}
 			}
@@ -1171,12 +1187,88 @@ void Simulation::LoadConfigFile() {
 	}
 }
 
+//load the obstacle file
+void Simulation::LoadObstacleFile() {
+	// Create a new reader, tell it which file to read
+	std::ifstream theReader;
+	std::string line;
+	int lineCount = 1;
+	theReader.open(obstaclesFilename);
+
+	int qntObstacles = 0;
+	int qntVertices = 0;
+	int qntTriangles = 0;
+	std::vector<Vector3> vertices;
+	std::vector<int> triangles;
+
+	// While there's lines left in the text file, do this:
+	do
+	{
+		std::getline(theReader, line);
+
+		if (line != "" && !line.empty())
+		{
+			//in first line, we have the terrain size
+			if (lineCount == 1)
+			{
+				std::vector<std::string> entries;
+				Split(line, ':', entries);
+
+				qntObstacles = std::stoi(entries[1]);
+			}
+			//in the third line, we have a new obstacle
+			else if (line == "Obstacle")
+			{
+				//reset
+				qntVertices = 0;
+				qntTriangles = 0;
+				vertices.clear();
+				triangles.clear();
+
+				//read next line with qntVertices
+				std::getline(theReader, line);
+				std::vector<std::string> entries;
+				Split(line, ':', entries);
+				qntVertices = std::stoi(entries[1]);
+
+				//read the next qntVertices lines for the vertices
+				for (int i = 0; i < qntVertices; i++) {
+					std::getline(theReader, line);
+					entries.clear();
+					Split(line, ';', entries);
+					Vector3 vertex(std::stof(entries[0]), std::stof(entries[1]), std::stof(entries[2]));
+					vertices.push_back(vertex);
+				}
+
+				//read next line with qntTriangles
+				std::getline(theReader, line);
+				entries.clear();
+				Split(line, ':', entries);
+				qntTriangles = std::stoi(entries[1]);
+
+				//read the next qntTriangles lines for the triangles
+				for (int i = 0; i < qntTriangles; i++) {
+					std::getline(theReader, line);
+					triangles.push_back(std::stoi(line));
+				}
+
+				//create it
+				DrawObstacle(vertices, triangles);
+			}
+		}
+		lineCount++;
+	} while (!theReader.eof());
+	// Done reading, close the reader and return true to broadcast success
+	theReader.close();
+}
+
 //load cells and auxins and obstacles and goals (static stuff)
 //just used with loadConfigFile = true
 void Simulation::LoadCellsAuxins() {
 	//read the obstacle file
-	ReadOBJFile();
+	//ReadOBJFile();
 	//DrawObstacles();
+	LoadObstacleFile();
 
 	// Create a new reader, tell it which file to read
 	std::ifstream theReader;
@@ -1234,7 +1326,11 @@ void Simulation::LoadCellsAuxins() {
 					if (entries.size() > 0)
 					{
 						//new cell
-						Cell newCell(std::stof(entries[1]), std::stof(entries[2]), std::stof(entries[3]), entries[0]);
+						Vector3 cellPos;
+						cellPos.x = std::stof(entries[1]);
+						cellPos.y = std::stof(entries[2]);
+						cellPos.z = std::stof(entries[3]);
+						Cell newCell(cellPos, entries[0]);
 						cellRadius = std::stof(entries[4]);
 						cells.push_back(newCell);
 					}
@@ -1256,7 +1352,11 @@ void Simulation::LoadCellsAuxins() {
 						}
 
 						if (ind > -1) {
-							Marker newMarker(std::stof(entries[1]), std::stof(entries[2]), std::stof(entries[3]));
+							Vector3 markerPos;
+							markerPos.x = std::stof(entries[1]);
+							markerPos.y = std::stof(entries[2]);
+							markerPos.z = std::stof(entries[3]);
+							Marker newMarker(markerPos);
 							newMarker.name = entries[0];
 							cells[ind].AddAuxin(newMarker);
 						}
@@ -1301,7 +1401,11 @@ void Simulation::LoadCellsAuxins() {
 				Split(line, ' ', entries);
 
 				//instantiante it
-				DrawGoal(entries[0], std::stof(entries[1]), 0, std::stof(entries[2]), false);
+				Vector3 goalPos;
+				goalPos.x = std::stof(entries[1]);
+				goalPos.y = 0;
+				goalPos.z = std::stof(entries[2]);
+				DrawGoal(entries[0], goalPos, false);
 			}
 		}
 		lineCount++;
@@ -1317,7 +1421,7 @@ void Simulation::LoadCellsAuxins() {
 	//instantiate the goal's signs
 	for (int p = 0; p < goals.size(); p++) {
 		if (!goals[p].isLookingFor) {
-			DrawSign(goals[p].posX, goals[p].posY, goals[p].posZ, &goals[p], 1);
+			DrawSign(goals[p].position, &goals[p], 1);
 		}
 	}
 
@@ -1327,15 +1431,15 @@ void Simulation::LoadCellsAuxins() {
 }
 
 //draw a goal
-void Simulation::DrawGoal(std::string goalName, float goalPositionX, float goalPositionY, float goalPositionZ, bool isLF)
+void Simulation::DrawGoal(std::string goalName, Vector3 goalPosition, bool isLF)
 {
-	Goal newGoal(goalName, goalPositionX, goalPositionY, goalPositionZ, isLF);
+	Goal newGoal(goalName, goalPosition, isLF);
 	goals.push_back(newGoal);
 }
 
 //draw a sign
-void Simulation::DrawSign(float signPositionX, float signPositionY, float signPositionZ, Goal* signGoal, float signAppeal) {
-	Sign newSign(signPositionX, signPositionY, signPositionZ);
+void Simulation::DrawSign(Vector3 signPosition, Goal* signGoal, float signAppeal) {
+	Sign newSign(signPosition);
 	newSign.SetGoal(signGoal);
 	newSign.SetAppeal(signAppeal);
 	signs.push_back(newSign);
@@ -1348,9 +1452,7 @@ void Simulation::DrawCells()
 	//first of all, create all cells (with this scene and this agentRadius = 1 : 150 cells)
 	//since radius = 1; diameter = 2. So, iterate cellRadius*2
 	//if the radius varies, this 2 operations adjust the cells
-	float newPositionX = cellRadius;
-	float newPositionY = 0;
-	float newPositionZ = cellRadius;
+	Vector3 newPosition(cellRadius, 0, cellRadius);
 
 	for (float j = 0; j < scenarioSizeZ; j = j + cellRadius * 2)
 	{
@@ -1372,7 +1474,7 @@ void Simulation::DrawCells()
 			if (true)
 			{
 				//new cell
-				Cell newCell(newPositionX + i, newPositionY, newPositionZ + j, "cell" + std::to_string(i) + "-" + std::to_string(j));
+				Cell newCell(Vector3(newPosition.x + i, 0, newPosition.z + j), "cell" + std::to_string(i) + "-" + std::to_string(j));
 				cells.push_back(newCell);
 			}
 		}
@@ -1402,8 +1504,10 @@ void Simulation::PlaceAuxins() {
 		for (int i = 0; i < qntAuxins; i++)
 		{
 			//k = ((float)rand()) / ((float)RAND_MAX) ;
-			float x = RandomFloat(cells[c].posX - cellRadius, cells[c].posX + cellRadius);
-			float z = RandomFloat(cells[c].posZ - cellRadius, cells[c].posZ + cellRadius);
+			Vector3 newPosition;
+			newPosition.x = RandomFloat(cells[c].position.x - cellRadius, cells[c].position.x + cellRadius);
+			newPosition.y = 0;
+			newPosition.z = RandomFloat(cells[c].position.z - cellRadius, cells[c].position.z + cellRadius);
 			//std::cout << cells[c].name << ": PosX - " << cells[c].posX << " -- " << x << " -- " << z << "\n";
 
 			//see if there are auxins in this radius. if not, instantiante
@@ -1412,7 +1516,7 @@ void Simulation::PlaceAuxins() {
 
 			for (int j = 0; j < allAuxinsInCell->size(); j++)
 			{
-				float distanceAA = Distance(x, 0, z, (*allAuxinsInCell)[j].posX, (*allAuxinsInCell)[j].posY, (*allAuxinsInCell)[j].posZ);
+				float distanceAA = Distance(newPosition, (*allAuxinsInCell)[j].position);
 
 				//if it is too near, i cant instantiante. found one, so can Break
 				if (distanceAA < auxinRadius)
@@ -1425,14 +1529,14 @@ void Simulation::PlaceAuxins() {
 			//if i have found no auxin, i still need to check if is there obstacles on the way
 			if (canIInstantiante)
 			{
-				canIInstantiante = !InsideObstacle(x, 0, z);
+				canIInstantiante = !InsideObstacle(newPosition);
 			}
 
 			//canIInstantiante???
 			if (canIInstantiante)
 			{
-				Marker newMarker(x, 0, z);
-				newMarker.name = "marker" + std::to_string(x) + "-" + std::to_string(z);
+				Marker newMarker(newPosition);
+				newMarker.name = "marker" + std::to_string(newPosition.x) + "-" + std::to_string(newPosition.z);
 				cells[c].AddAuxin(newMarker);
 
 				//reset the flag
@@ -1489,13 +1593,13 @@ void Simulation::PlaceAuxinsAsGrid() {
 	for (int c = 0; c < cells.size(); c++)
 	{
 		//for each line, variating by spacevariation
-		for (float i = cells[c].posX - cellRadius; i < cells[c].posX + cellRadius; i = i + spaceVariation) {
+		for (float i = cells[c].position.x - cellRadius; i < cells[c].position.x + cellRadius; i = i + spaceVariation) {
 			//for each column, variating by spacevariation
-			for (float j = cells[c].posZ - cellRadius; j < cells[c].posZ + cellRadius; j = j + spaceVariation) {
+			for (float j = cells[c].position.z - cellRadius; j < cells[c].position.z + cellRadius; j = j + spaceVariation) {
 				//if it is not inside an obstacle
-				if (!InsideObstacle(i, 0, j))
+				if (!InsideObstacle(Vector3(i, 0, j)))
 				{
-					Marker newMarker(i, 0, j);
+					Marker newMarker(Vector3(i, 0, j));
 					newMarker.name = "marker" + std::to_string(i) + "-" + std::to_string(j);
 					cells[c].AddAuxin(newMarker);
 				}
@@ -1544,15 +1648,15 @@ void Simulation::SaveConfigFile() {
 		//for each cell auxin
 		for (int i = 0; i < cells.size(); i++)
 		{
-			file << cells[i].name + ";" + std::to_string(cells[i].posX) + ";" + std::to_string(cells[i].posY) +
-				";" + std::to_string(cells[i].posZ) + ";" + std::to_string(cellRadius) + "\n";
+			file << cells[i].name + ";" + std::to_string(cells[i].position.x) + ";" + std::to_string(cells[i].position.y) +
+				";" + std::to_string(cells[i].position.z) + ";" + std::to_string(cellRadius) + "\n";
 
 			//add all cell auxins to write later
 			std::vector<Marker>* allCellAuxins = cells[i].GetAuxins();
 			for (int j = 0; j < allCellAuxins->size(); j++)
 			{
-				allAuxins += (*allCellAuxins).at(j).name + ";" + std::to_string((*allCellAuxins).at(j).posX) + ";" +
-					std::to_string((*allCellAuxins).at(j).posY) + ";" + std::to_string((*allCellAuxins).at(j).posZ) + ";" +
+				allAuxins += (*allCellAuxins).at(j).name + ";" + std::to_string((*allCellAuxins).at(j).position.x) + ";" +
+					std::to_string((*allCellAuxins).at(j).position.y) + ";" + std::to_string((*allCellAuxins).at(j).position.z) + ";" +
 					std::to_string(auxinRadius) + ";" + cells[i].name + "\n";
 				qntAuxins++;
 			}
@@ -1566,22 +1670,22 @@ void Simulation::SaveConfigFile() {
 	file.close();
 
 	//get obstacles info
-	if (obstaclesX.size() > 0)
+	if (obstacles.size() > 0)
 	{
 		//separated with ;
-		fileObstacles << "qntObstacles:" << obstaclesX.size() << "\n";
+		fileObstacles << "qntObstacles:" << obstacles.size() << "\n";
 		
 		//for each obstacle
-		for (int o = 0; o < obstaclesX.size(); o++) {
+		for (int o = 0; o < obstacles.size(); o++) {
 			//new line for the obstacle name
 			fileObstacles << "\nObstacle\n";
 			//new line for the qnt vertices
-			fileObstacles << "qntVertices:" + std::to_string(obstaclesX[o].size()) + "\n";
+			fileObstacles << "qntVertices:" + std::to_string(obstacles[o].size()) + "\n";
 
 			//for each vertice
-			for (int i = 0; i < obstaclesX[o].size(); i++)
+			for (int i = 0; i < obstacles[o].size(); i++)
 			{
-				fileObstacles << std::to_string(obstaclesX[o][i]) + ";0;" + std::to_string(obstaclesZ[o][i]) + "\n";
+				fileObstacles << std::to_string(obstacles[o][i].x) + ";0;" + std::to_string(obstacles[o][i].z) + "\n";
 			}
 
 			//new line for the qnt triangles
@@ -1609,7 +1713,7 @@ void Simulation::SaveConfigFile() {
 		{
 			if (!goals[i].isLookingFor) {
 				//new line for the goal name and position
-				allGoals += goals[i].name + " " + std::to_string(goals[i].posX) + " " + std::to_string(goals[i].posZ) + "\n";
+				allGoals += goals[i].name + " " + std::to_string(goals[i].position.x) + " " + std::to_string(goals[i].position.z) + "\n";
 				qntGoals++;
 			}
 		}
@@ -1696,12 +1800,12 @@ void Simulation::Update(double elapsed) {
 				for (int j = 0; j < agentAuxins.size(); j++)
 				{
 					//add the distance vector between it and the agent
-					agentsGroups[f].agents[i].vetorDistRelacaoMarcacaoX.push_back(agentAuxins[j]->posX - agentsGroups[f].agents[i].posX);
-					agentsGroups[f].agents[i].vetorDistRelacaoMarcacaoY.push_back(agentAuxins[j]->posY - agentsGroups[f].agents[i].posY);
-					agentsGroups[f].agents[i].vetorDistRelacaoMarcacaoZ.push_back(agentAuxins[j]->posZ - agentsGroups[f].agents[i].posZ);
+					Vector3 newDistRel(agentAuxins[j]->position.x - agentsGroups[f].agents[i].position.x, agentAuxins[j]->position.y - agentsGroups[f].agents[i].position.y,
+						agentAuxins[j]->position.z - agentsGroups[f].agents[i].position.z);
+					agentsGroups[f].agents[i].vetorDistRelacaoMarcacao.push_back(newDistRel);
 				}
-				/*for (int v = 0; v < agents[i].vetorDistRelacaoMarcacaoX.size(); v++) {
-					std::cout << agents[i].vetorDistRelacaoMarcacaoX[v] << "\n";
+				/*for (int v = 0; v < agents[i].vetorDistRelacaoMarcacao.size(); v++) {
+					std::cout << agents[i].vetorDistRelacaoMarcacao[v] << "\n";
 				}*/
 
 				//calculate the movement vector
@@ -1711,29 +1815,22 @@ void Simulation::Update(double elapsed) {
 
 				//now, we check if agent is stuck with another agent
 				//if so, change places
-				if (agentsGroups[f].agents[i].speedX == 0 && agentsGroups[f].agents[i].speedY == 0 && agentsGroups[f].agents[i].speedZ == 0)
+				if (agentsGroups[f].agents[i].speed.x == 0 && agentsGroups[f].agents[i].speed.y == 0 && agentsGroups[f].agents[i].speed.z == 0)
 				{
 					//check distance between this agent and every other agent
 					bool agentNear = false;
 					for (int q = 0; q < agentsGroups.size(); q++) {
 						for (int j = 0; j < agentsGroups[q].agents.size(); j++) {
 							//if they are too near and both with zero speed, probally stuck. Swap positions if this agent may do it
-							if (Distance(agentsGroups[f].agents[i].posX, agentsGroups[f].agents[i].posY, agentsGroups[f].agents[i].posZ, agentsGroups[q].agents[j].posX, 
-								agentsGroups[q].agents[j].posY, agentsGroups[q].agents[j].posZ) < 0.1f && 
-								(agentsGroups[q].agents[j].speedX == 0 && agentsGroups[q].agents[j].speedY == 0 && agentsGroups[q].agents[j].speedZ == 0) && 
+							if (Distance(agentsGroups[f].agents[i].position, agentsGroups[q].agents[j].position) < 0.1f && 
+								(agentsGroups[q].agents[j].speed.x == 0 && agentsGroups[q].agents[j].speed.y == 0 && agentsGroups[q].agents[j].speed.z == 0) && 
 								agentsGroups[f].agents[i].changePosition && i != j) {
 								std::cout << "\n LOCKED: " + agentsGroups[f].agents[i].name + " with " + agentsGroups[q].agents[j].name + "\n";
 								//system("PAUSE");
 
-								float posAuxX = agentsGroups[f].agents[i].posX;
-								float posAuxY = agentsGroups[f].agents[i].posY;
-								float posAuxZ = agentsGroups[f].agents[i].posZ;
-								agentsGroups[f].agents[i].posX = agentsGroups[q].agents[j].posX;
-								agentsGroups[f].agents[i].posY = agentsGroups[q].agents[j].posY;
-								agentsGroups[f].agents[i].posZ = agentsGroups[q].agents[j].posZ;
-								agentsGroups[q].agents[j].posX = posAuxX;
-								agentsGroups[q].agents[j].posY = posAuxY;
-								agentsGroups[q].agents[j].posZ = posAuxZ;
+								Vector3 posAux = agentsGroups[f].agents[i].position;
+								agentsGroups[f].agents[i].position = agentsGroups[q].agents[j].position;
+								agentsGroups[q].agents[j].position = posAux;
 
 								//the other agent doesnt change position
 								agentsGroups[q].agents[j].changePosition = false;
@@ -1771,7 +1868,8 @@ void Simulation::Update(double elapsed) {
 
 				//verify agent position, in relation to the goal.
 				//if the distance between them is less than 1 (arbitrary, maybe authors have a better solution), he arrived. Destroy it so
-				float dist = Distance(goal->posX, goal->posY, goal->posZ, agentsGroups[f].agents[i].posX, agentsGroups[f].agents[i].posY, agentsGroups[f].agents[i].posZ);
+				float dist = Distance(goal->position, agentsGroups[f].agents[i].position);
+				
 				if (dist < agentsGroups[f].agents[i].agentRadius)
 				{
 					//he arrived! Lets save this on file
@@ -1817,15 +1915,11 @@ void Simulation::Update(double elapsed) {
 							}
 
 							for (int j = 0; j < agentsGroups[f].agents.size(); j++) {
-								if (agentsGroups[f].pathX.size() == 0) {
-									agentsGroups[f].agents[j].goalX = agentsGroups[f].go[0]->posX;
-									agentsGroups[f].agents[j].goalY = agentsGroups[f].go[0]->posY;
-									agentsGroups[f].agents[j].goalZ = agentsGroups[f].go[0]->posZ;
+								if (agentsGroups[f].path.size() == 0) {
+									agentsGroups[f].agents[j].goal = agentsGroups[f].go[0]->position;
 								}
 								else {
-									agentsGroups[f].agents[j].goalX = agentsGroups[f].pathX[0];
-									agentsGroups[f].agents[j].goalY = agentsGroups[f].go[0]->posY;
-									agentsGroups[f].agents[j].goalZ = agentsGroups[f].pathZ[0];
+									agentsGroups[f].agents[j].goal = agentsGroups[f].path[0];
 								}
 							}
 						}
@@ -1834,16 +1928,15 @@ void Simulation::Update(double elapsed) {
 			}
 
 			//after all agents walked, find the centroid of all agents to update center position of the group
-			float centerX = 0;
-			float centerZ = 0;
+			Vector3 center(0, 0, 0);
 			for (int j = 0; j < agentsGroups[f].agents.size(); j++) {
-				centerX += agentsGroups[f].agents[j].posX;
-				centerZ += agentsGroups[f].agents[j].posZ;
+				center.x += agentsGroups[f].agents[j].position.x;
+				center.z += agentsGroups[f].agents[j].position.z;
 			}
 			Vector3 newPosition;
-			newPosition.x = centerX / agentsGroups[f].agents.size();
+			newPosition.x = center.x / agentsGroups[f].agents.size();
 			newPosition.y = 0;
-			newPosition.z = centerZ / agentsGroups[f].agents.size();
+			newPosition.z = center.z / agentsGroups[f].agents.size();
 			agentsGroups[f].position = newPosition;
 
 			//need to change path node?
@@ -1889,7 +1982,7 @@ void Simulation::SaveExitFile() {
 			for (int i = 0; i < agentsGroups[j].agents.size(); i++)
 			{
 				exitFile << std::to_string((((float)clock() - startTime) / CLOCKS_PER_SEC) - lastFrameCount) + ";" + agentsGroups[j].agents[i].name + ";"
-					+ std::to_string(agentsGroups[j].agents[i].posX) + ";" + std::to_string(agentsGroups[j].agents[i].posY) + ";" + std::to_string(agentsGroups[j].agents[i].posZ) + ";" +
+					+ std::to_string(agentsGroups[j].agents[i].position.x) + ";" + std::to_string(agentsGroups[j].agents[i].position.y) + ";" + std::to_string(agentsGroups[j].agents[i].position.z) + ";" +
 					agentsGroups[j].go[0]->name + ";" + agentsGroups[j].agents[i].GetCell()->name + "\n";
 
 				//invert Y and Z, since the visualisation works with X and Y
@@ -1910,8 +2003,7 @@ void Simulation::SaveAgentsGoalFile(std::string agentName, std::string goalName)
 
 //"draw" obstacles on the scene
 void Simulation::DrawObstacles() {
-	obstaclesX.clear();
-	obstaclesZ.clear();
+	obstacles.clear();
 	allTriangles.clear();
 	
 	/*for (int i = 0; i < verticesObstaclesX.size(); i = i + 4) {
@@ -1956,28 +2048,18 @@ void Simulation::DrawObstacles() {
 	}*/
 
 	//draw rectangle 1
-	std::vector<float> verticesX;
-	std::vector<float> verticesY;
-	std::vector<float> verticesZ;
+	std::vector<Vector3> vertices;
 	std::vector<int> triangles;
 
 	//set vertices
 	//vertice 1
-	verticesX.push_back(10.0f);
-	verticesY.push_back(0.0f);
-	verticesZ.push_back(10.0f);
+	vertices.push_back(Vector3(10.0f, 0.0f, 10.0f));
 	//vertice 2
-	verticesX.push_back(10.0f);
-	verticesY.push_back(0.0f);
-	verticesZ.push_back(40.0f);
+	vertices.push_back(Vector3(10.0f, 0.0f, 40.0f));
 	//vertice 3
-	verticesX.push_back(40.0f);
-	verticesY.push_back(0.0f);
-	verticesZ.push_back(40.0f);
+	vertices.push_back(Vector3(40.0f, 0.0f, 40.0f));
 	//vertice 4
-	verticesX.push_back(40.0f);
-	verticesY.push_back(0.0f);
-	verticesZ.push_back(10.0f);
+	vertices.push_back(Vector3(40.0f, 0.0f, 10.0f));
 
 	//triangles
 	triangles.push_back(0);
@@ -1988,32 +2070,22 @@ void Simulation::DrawObstacles() {
 	triangles.push_back(0);
 
 	//"draw" it
-	DrawObstacle(verticesX, verticesY, verticesZ, triangles);
+	DrawObstacle(vertices, triangles);
 	//end rectangle 1
 
 	//rectangle 2
-	verticesX.clear();
-	verticesY.clear();
-	verticesZ.clear();
+	vertices.clear();
 	triangles.clear();
 
 	//set vertices
 	//vertice 1
-	verticesX.push_back(10.0f);
-	verticesY.push_back(0.0f);
-	verticesZ.push_back(60.0f);
+	vertices.push_back(Vector3(10.0f, 0.0f, 60.0f));
 	//vertice 2
-	verticesX.push_back(10.0f);
-	verticesY.push_back(0.0f);
-	verticesZ.push_back(90.0f);
+	vertices.push_back(Vector3(10.0f, 0.0f, 90.0f));
 	//vertice 3
-	verticesX.push_back(40.0f);
-	verticesY.push_back(0.0f);
-	verticesZ.push_back(90.0f);
+	vertices.push_back(Vector3(40.0f, 0.0f, 90.0f));
 	//vertice 4
-	verticesX.push_back(40.0f);
-	verticesY.push_back(0.0f);
-	verticesZ.push_back(60.0f);
+	vertices.push_back(Vector3(40.0f, 0.0f, 60.0f));
 
 	//triangles
 	triangles.push_back(0);
@@ -2024,32 +2096,22 @@ void Simulation::DrawObstacles() {
 	triangles.push_back(0);
 
 	//"draw" it
-	DrawObstacle(verticesX, verticesY, verticesZ, triangles);
+	DrawObstacle(vertices, triangles);
 	//end rectangle 2
 
 	//rectangle 3
-	verticesX.clear();
-	verticesY.clear();
-	verticesZ.clear();
+	vertices.clear();
 	triangles.clear();
 
 	//set vertices
 	//vertice 1
-	verticesX.push_back(60.0f);
-	verticesY.push_back(0.0f);
-	verticesZ.push_back(10.0f);
+	vertices.push_back(Vector3(60.0f, 0.0f, 10.0f));
 	//vertice 2
-	verticesX.push_back(60.0f);
-	verticesY.push_back(0.0f);
-	verticesZ.push_back(40.0f);
+	vertices.push_back(Vector3(60.0f, 0.0f, 40.0f));
 	//vertice 3
-	verticesX.push_back(90.0f);
-	verticesY.push_back(0.0f);
-	verticesZ.push_back(40.0f);
+	vertices.push_back(Vector3(90.0f, 0.0f, 40.0f));
 	//vertice 4
-	verticesX.push_back(90.0f);
-	verticesY.push_back(0.0f);
-	verticesZ.push_back(10.0f);
+	vertices.push_back(Vector3(90.0f, 0.0f, 10.0f));
 
 	//triangles
 	triangles.push_back(0);
@@ -2060,32 +2122,22 @@ void Simulation::DrawObstacles() {
 	triangles.push_back(0);
 
 	//"draw" it
-	DrawObstacle(verticesX, verticesY, verticesZ, triangles);
+	DrawObstacle(vertices, triangles);
 	//end rectangle 3
 
 	//rectangle 4
-	verticesX.clear();
-	verticesY.clear();
-	verticesZ.clear();
+	vertices.clear();
 	triangles.clear();
 
 	//set vertices
 	//vertice 1
-	verticesX.push_back(60.0f);
-	verticesY.push_back(0.0f);
-	verticesZ.push_back(60.0f);
+	vertices.push_back(Vector3(60.0f, 0.0f, 60.0f));
 	//vertice 2
-	verticesX.push_back(60.0f);
-	verticesY.push_back(0.0f);
-	verticesZ.push_back(90.0f);
+	vertices.push_back(Vector3(60.0f, 0.0f, 90.0f));
 	//vertice 3
-	verticesX.push_back(90.0f);
-	verticesY.push_back(0.0f);
-	verticesZ.push_back(90.0f);
+	vertices.push_back(Vector3(90.0f, 0.0f, 90.0f));
 	//vertice 4
-	verticesX.push_back(90.0f);
-	verticesY.push_back(0.0f);
-	verticesZ.push_back(60.0f);
+	vertices.push_back(Vector3(90.0f, 0.0f, 60.0f));
 
 	//triangles
 	triangles.push_back(0);
@@ -2096,25 +2148,21 @@ void Simulation::DrawObstacles() {
 	triangles.push_back(0);
 
 	//"draw" it
-	DrawObstacle(verticesX, verticesY, verticesZ, triangles);
+	DrawObstacle(vertices, triangles);
 	//end rectangle 4
 }
 
 //draw each obstacle, placing its vertices on the verticesObstacles. So, signs can be instantiated on those places
-void Simulation::DrawObstacle(std::vector<float> verticesX, std::vector<float> verticesY, std::vector<float> verticesZ, std::vector<int> triangles) {
+void Simulation::DrawObstacle(std::vector<Vector3> vertices, std::vector<int> triangles) {
 	//X vertices
-	std::vector<float> polygonX;
-	//Z vertices
-	std::vector<float> polygonZ;
+	std::vector<Vector3> polygon;
 
-	for (int i = 0; i < verticesX.size(); i++) {
+	for (int i = 0; i < vertices.size(); i++) {
 		//polygon for InsideObstacle calculus
-		polygonX.push_back(verticesX[i]);
-		polygonZ.push_back(verticesZ[i]);
+		polygon.push_back(vertices[i]);
 	}
 
-	obstaclesX.push_back(polygonX);
-	obstaclesZ.push_back(polygonZ);
+	obstacles.push_back(polygon);
 
 	//triangles
 	allTriangles.push_back(triangles);
@@ -2558,9 +2606,7 @@ void Simulation::ReadOBJFile()
 	std::string line;
 	int qntVertices = 0;
 	int qntTriangles = 0;
-	std::vector<float> verticesX;
-	std::vector<float> verticesY;
-	std::vector<float> verticesZ;
+	std::vector<Vector3> vertices;
 	std::vector<int> triangles;
 
 	int lineCount = 1;
@@ -2592,9 +2638,8 @@ void Simulation::ReadOBJFile()
 				//if it starts with v, it is vertice. else, if it starts with f, it is facet which form a triangle (hopefully!)
 				if (entries[0] == "v")
 				{
-					verticesX.push_back((std::stof(entries[1]) + obstacleDisplacement)*obstacleScale);
-					verticesY.push_back((std::stof(entries[2]) + obstacleDisplacement)*obstacleScale);
-					verticesZ.push_back((std::stof(entries[3]) + obstacleDisplacement)*obstacleScale);
+					vertices.push_back(Vector3((std::stof(entries[1]) + obstacleDisplacement)*obstacleScale, (std::stof(entries[2]) + obstacleDisplacement)*obstacleScale, 
+						(std::stof(entries[3]) + obstacleDisplacement)*obstacleScale));
 				}
 				else if (entries[0] == "f")
 				{
@@ -2609,9 +2654,9 @@ void Simulation::ReadOBJFile()
 		lineCount++;
 	} while (!theReader.eof());
 
-	DrawObstacle(verticesX, verticesY, verticesZ, triangles);
-	/*for (int v = 0; v < verticesX.size(); v++) {
-		std::cout << verticesX[v] << "\n";
+	DrawObstacle(vertices, triangles);
+	/*for (int v = 0; v < vertices.size(); v++) {
+		std::cout << vertices[v] << "\n";
 	}*/
 
 	// Done reading, close the reader and return true to broadcast success
@@ -2631,18 +2676,62 @@ void Simulation::GenerateLookingFor() {
 		//while i have an obstacle on the way
 		while (pCollider) {
 			//generate the new position
-			float x = RandomFloat(0, scenarioSizeX);
-			float z = RandomFloat(0, scenarioSizeZ);
+			Vector3 newPosition(RandomFloat(0, scenarioSizeX), 0, RandomFloat(0, scenarioSizeZ));
 
 			//check if it is not inside an obstacle
-			bool pCollider = InsideObstacle(x, 0, z);
+			bool pCollider = InsideObstacle(newPosition);
 
 			//if not, new looking for!
 			if (!pCollider) {
-				DrawGoal("LookingFor", x, 0, z, true);
+				DrawGoal("LookingFor", newPosition, true);
 				break;
 			}
 		}
+	}
+}
+
+Vector3 Simulation::GeneratePosition(int groupIndex, bool useCenter) {
+	//generate the position
+	Vector3 newPosition(0, 0, 0);
+	//if alreadyOne == false, it is the first agent in this group. So, we can set it on the center
+	if (useCenter) {
+		newPosition = agentsGroups[groupIndex].position;
+	}//else, rand
+	else {
+		//@TODO: mean dist is with weird values
+		//x = RandomFloat(agentsGroups[groupIndex].position.x - meanDist * 2, agentsGroups[groupIndex].position.x + meanDist * 2);
+		//z = RandomFloat(agentsGroups[groupIndex].position.z - meanDist * 2, agentsGroups[groupIndex].position.z + meanDist * 2);
+		newPosition.x = RandomFloat(agentsGroups[groupIndex].position.x - 0.2f, agentsGroups[groupIndex].position.x + 0.2f);
+		newPosition.z = RandomFloat(agentsGroups[groupIndex].position.z - 0.2f, agentsGroups[groupIndex].position.z + 0.2f);
+	}
+
+	//see if there are agents in this radius. if not, instantiante
+	bool pCollider = false;
+
+	for (int j = 0; j < agentsGroups[groupIndex].agents.size(); j++) {
+		//@TODO: mean dist is with weird values
+		//if (Distance(x, 0, z, agentsGroups[groupIndex].agents[j].posX, agentsGroups[groupIndex].agents[j].posY, agentsGroups[groupIndex].agents[j].posZ) < meanDist) {
+		if (Distance(newPosition, agentsGroups[groupIndex].agents[j].position) < 0.1f) {
+			pCollider = true;
+			break;
+		}
+	}
+
+	//even so, if we are an obstacle, cannot instantiate either
+	//just need to check for obstacle if found no player, otherwise it will not be instantiated anyway
+	if (!pCollider) {
+		pCollider = InsideObstacle(newPosition);
+	}
+
+	//if found a player in the radius, do not instantiante. try again
+	if (pCollider)
+	{
+		//try again
+		return GeneratePosition(groupIndex, useCenter);
+	}
+	else
+	{
+		return newPosition;
 	}
 }
 
@@ -2655,22 +2744,19 @@ void Simulation::ChangeLookingFor(Goal* changeLF) {
 		//choose a new random node
 		if (useAStar) {
 			int index = (int)RandomFloat(0, graphNodesPos.size() - 1);
-			changeLF->posX = graphNodesPos[index].x;
-			changeLF->posY = 0;
-			changeLF->posZ = graphNodesPos[index].z;
+			changeLF->position.x = graphNodesPos[index].x;
+			changeLF->position.y = 0;
+			changeLF->position.z = graphNodesPos[index].z;
 			break;
 		}else{
-			float x = (int)RandomFloat(0, scenarioSizeX);
-			float z = (int)RandomFloat(0, scenarioSizeZ);
+			Vector3 newPosition((int)RandomFloat(0, scenarioSizeX), 0, (int)RandomFloat(0, scenarioSizeZ));
 
 			//check if it is not inside an obstacle
-			bool pCollider = InsideObstacle(x, 0, z);
+			bool pCollider = InsideObstacle(newPosition);
 
 			//if not, new looking for!
 			if (!pCollider) {
-				changeLF->posX = x;
-				changeLF->posY = 0;
-				changeLF->posZ = z;
+				changeLF->position = newPosition;
 				break;
 			}
 		}
@@ -2678,9 +2764,9 @@ void Simulation::ChangeLookingFor(Goal* changeLF) {
 }
 
 //distance between 2 points
-float Simulation::Distance(float x1, float y1, float z1, float x2, float y2, float z2)
+float Simulation::Distance(Vector3 start, Vector3 end)
 {
-	float result = sqrt((x2 - x1)*(x2 - x1) + (y2 - y1)*(y2 - y1) + (z2 - z1)*(z2 - z1));
+	float result = sqrt((end.x - start.x)*(end.x - start.x) + (end.y - start.y)*(end.y - start.y) + (end.z - start.z)*(end.z - start.z));
 
 	return result;
 }
@@ -2754,18 +2840,18 @@ bool Simulation::Contains(std::vector<float> arrayToSearch, std::vector<float> a
 //
 //  Note that division by zero is avoided because the division is protected
 //  by the "if" clause which surrounds it.
-bool Simulation::InsideObstacle(float pX, float pY, float pZ) {
+bool Simulation::InsideObstacle(Vector3 p) {
 	bool  oddNodes = false;
 
-	for (int o = 0; o < obstaclesX.size(); o++) {
-		int   i, j = obstaclesX[o].size() - 1;
+	for (int o = 0; o < obstacles.size(); o++) {
+		int   i, j = obstacles[o].size() - 1;
 		oddNodes = false;
 
-		for (i = 0; i < obstaclesX[o].size(); i++) {
-			if ((obstaclesZ[o][i] < pZ && obstaclesZ[o][j] >= pZ
-				|| obstaclesZ[o][j] < pZ && obstaclesZ[o][i] >= pZ)
-				&& (obstaclesX[o][i] <= pX || obstaclesX[o][j] <= pX)) {
-				oddNodes ^= (obstaclesX[o][i] + (pZ - obstaclesZ[o][i]) / (obstaclesZ[o][j] - obstaclesZ[o][i])*(obstaclesX[o][j] - obstaclesX[o][i]) < pX);
+		for (i = 0; i < obstacles[o].size(); i++) {
+			if ((obstacles[o][i].z < p.z && obstacles[o][j].z >= p.z
+				|| obstacles[o][j].z < p.z && obstacles[o][i].z >= p.z)
+				&& (obstacles[o][i].x <= p.x || obstacles[o][j].x <= p.x)) {
+				oddNodes ^= (obstacles[o][i].x + (p.z - obstacles[o][i].z) / (obstacles[o][j].z - obstacles[o][i].z)*(obstacles[o][j].x - obstacles[o][i].x) < p.x);
 			}
 			j = i;
 		}
@@ -2818,28 +2904,27 @@ bool Simulation::InsideObstacle(float pX, float pY, float pZ) {
 
 //unlock agent if he stops because an obstacle
 void Simulation::UnlockAgent(Agent* agentToUnlock) {
-	std::cout << agentToUnlock->name << " has locked at position " << agentToUnlock->posX << " -- " << agentToUnlock->posZ << "!\n";
+	std::cout << agentToUnlock->name << " has locked at position " << agentToUnlock->position.x << " -- " << agentToUnlock->position.z << "!\n";
 	int agentDisplacement = 10;
 	while (true) {
 		//generate a new random position inside a radius
-		float minX = agentToUnlock->posX - agentDisplacement;
-		float maxX = agentToUnlock->posX + agentDisplacement;
-		float minZ = agentToUnlock->posZ - agentDisplacement;
-		float maxZ = agentToUnlock->posZ + agentDisplacement;
+		float minX = agentToUnlock->position.x - agentDisplacement;
+		float maxX = agentToUnlock->position.x + agentDisplacement;
+		float minZ = agentToUnlock->position.z - agentDisplacement;
+		float maxZ = agentToUnlock->position.z + agentDisplacement;
 
 		if (minX < 0) minX = 0;
 		if (minZ < 0) minZ = 0;
 		if (maxX > scenarioSizeX) maxX = scenarioSizeX;
 		if (maxZ > scenarioSizeZ) maxZ = scenarioSizeZ;
 
-		float x = (int)RandomFloat(minX, maxX);
-		float z = (int)RandomFloat(minZ, maxZ);
+		Vector3 newPosition((int)RandomFloat(minX, maxX), 0, (int)RandomFloat(minZ, maxZ));
 
 		//see if there are agents in this radius. if not, new position
 		bool pCollider = false;
 		for (int i = 0; i < agentsGroups.size(); i++) {
 			for (int j = 0; j < agentsGroups[i].agents.size(); j++) {
-				if (Distance(x, 0, z, agentsGroups[i].agents[j].posX, agentsGroups[i].agents[j].posY, agentsGroups[i].agents[j].posZ) < 0.1f) {
+				if (Distance(newPosition, agentsGroups[i].agents[j].position) < 0.1f) {
 					pCollider = true;
 					break;
 				}
@@ -2849,16 +2934,14 @@ void Simulation::UnlockAgent(Agent* agentToUnlock) {
 		//even so, if we are an obstacle, cannot change position either
 		//just need to check for obstacle if found no player, otherwise it will not be changed anyway
 		if (!pCollider) {
-			pCollider = InsideObstacle(x, 0, z);
+			pCollider = InsideObstacle(newPosition);
 		}
 
 		//if found, yay! go on
 		if (!pCollider) {
-			agentToUnlock->posX = x;
-			agentToUnlock->posY = 0;
-			agentToUnlock->posZ = z;
+			agentToUnlock->position = newPosition;
 
-			std::cout << agentToUnlock->name << " new position: " << x << " -- " << z << "\n";
+			std::cout << agentToUnlock->name << " new position: " << newPosition.x << " -- " << newPosition.z << "\n";
 
 			//need to recalculate path
 			if (useAStar) {
@@ -2866,9 +2949,8 @@ void Simulation::UnlockAgent(Agent* agentToUnlock) {
 			}
 
 			//his next goal
-			if (agentsGroups[agentToUnlock->groupIndex].pathX.size() > 0) {
-				agentToUnlock->goalX = agentsGroups[agentToUnlock->groupIndex].pathX[0];
-				agentToUnlock->goalZ = agentsGroups[agentToUnlock->groupIndex].pathZ[0];
+			if (agentsGroups[agentToUnlock->groupIndex].path.size() > 0) {
+				agentToUnlock->goal = agentsGroups[agentToUnlock->groupIndex].path[0];
 			}
 
 			break;
@@ -2879,13 +2961,12 @@ void Simulation::UnlockAgent(Agent* agentToUnlock) {
 //calculate mean points
 void Simulation::CalculateMeanPoints(std::vector<Triangle>* triangles) {
 	for (auto &t : *triangles) {
-		float somaX = (t.p1.x + t.p2.x + t.p3.x) / 3;
-		float somaY = (t.p1.y + t.p2.y + t.p3.y) / 3;
+		Vector3 soma((t.p1.x + t.p2.x + t.p3.x) / 3, 0, (t.p1.y + t.p2.y + t.p3.y) / 3);
 
-		if (!InsideObstacle(somaX, 0, somaY)) {
+		if (!InsideObstacle(soma)) {
 			Node node;
-			node.x = somaX;
-			node.z = somaY;
+			node.x = soma.x;
+			node.z = soma.z;
 			node.v1X = t.p1.x;
 			node.v1Z = t.p1.y;
 			node.v2X = t.p2.x;
@@ -2902,8 +2983,7 @@ void Simulation::CalculateMeanPoints(std::vector<Triangle>* triangles) {
 //A Star Search Path
 void Simulation::AStarPath(AgentGroup* agentPath) {
 	//clear actual path
-	agentPath->pathX.clear();
-	agentPath->pathZ.clear();
+	agentPath->path.clear();
 
 	//A* SEARCH
 	AStarSearch<AStarSearchNode> astarsearch;
@@ -2927,8 +3007,8 @@ void Simulation::AStarPath(AgentGroup* agentPath) {
 
 		// Define the goal state
 		AStarSearchNode nodeEnd;
-		nodeEnd.x = agentPath->go[0]->posX;
-		nodeEnd.y = agentPath->go[0]->posZ;
+		nodeEnd.x = agentPath->go[0]->position.x;
+		nodeEnd.y = agentPath->go[0]->position.z;
 		nodeEnd.maxSizeX = scenarioSizeX;
 		nodeEnd.maxSizeZ = scenarioSizeZ;
 		nodeEnd.graphNodes = &graphNodes;
@@ -2973,8 +3053,7 @@ void Simulation::AStarPath(AgentGroup* agentPath) {
 					break;
 				}
 
-				agentPath->pathX.push_back(node->x);
-				agentPath->pathZ.push_back(node->y);
+				agentPath->path.push_back(Vector3(node->x, 0, node->y));
 
 				//node->PrintNodeInfo();
 				steps++;

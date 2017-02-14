@@ -7,11 +7,9 @@ Marker::Marker()
 }
 
 //initialize with its new position
-Marker::Marker(float newPosX, float newPosY, float newPosZ)
+Marker::Marker(Vector3 newPosition)
 {
-	posX = newPosX;
-	posY = newPosY;
-	posZ = newPosZ;
+	position = newPosition;
 
 	//above agent radius, for it need to be high, since will store the min distance
 	minDistance = 2;

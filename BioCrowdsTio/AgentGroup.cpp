@@ -62,7 +62,7 @@ bool AgentGroup::CheckSignsInView(std::vector<Sign>* allSigns) {
 	//for each agent in this group
 	for (int a = 0; a < agents.size(); a++) {
 		for (int s = 0; s < allSigns->size(); s++) {
-			float distance = Distance(agents[a].posX, agents[a].posY, agents[a].posZ, (*allSigns)[s].posX, (*allSigns)[s].posY, (*allSigns)[s].posZ);
+			float distance = Simulation::Distance(agents[a].position, (*allSigns)[s].position);
 			//if distance <= agent field of view, the sign may affect the agent
 			if (distance <= agents[a].fieldOfView)
 			{
@@ -120,7 +120,7 @@ void AgentGroup::ChangePath() {
 	float dist = 20;
 	//check the distance of each agent
 	for (int i = 0; i < agents.size(); i++) {
-		float hisDist = Distance(agents[i].goalX, agents[i].goalY, agents[i].goalZ, agents[i].posX, agents[i].posY, agents[i].posZ);
+		float hisDist = Simulation::Distance(agents[i].goal, agents[i].position);
 		if (hisDist < dist) {
 			dist = hisDist;
 		}
@@ -128,42 +128,25 @@ void AgentGroup::ChangePath() {
 	
 	if (dist < 0.5f)
 	{
-		if (!pathX.empty()) {
-			pathX.erase(pathX.begin());
-			pathZ.erase(pathZ.begin());
+		if (!path.empty()) {
+			path.erase(path.begin());
 		}
 
 		//update
 		//if it is empty, already at last node. So, set the actual goal
-		float newGoalX = 0;
-		float newGoalY = 0;
-		float newGoalZ = 0;
-		if (pathX.empty()) {
-			newGoalX = go[0]->posX;
-			newGoalY = go[0]->posY;
-			newGoalZ = go[0]->posZ;
+		Vector3 newGoal(0, 0, 0);
+		if (path.empty()) {
+			newGoal = go[0]->position;
 		}//else, next node
 		else {
-			newGoalX = pathX[0];
-			newGoalY = go[0]->posY;
-			newGoalZ = pathZ[0];
+			newGoal = path[0];
 		}
 
 		//update all agents of the group
 		for (int i = 0; i < agents.size(); i++) {
-			agents[i].goalX = newGoalX;
-			agents[i].goalY = newGoalY;
-			agents[i].goalZ = newGoalZ;
+			agents[i].goal = newGoal;
 		}
 	}
-}
-
-//distance between 2 points
-float AgentGroup::Distance(float x1, float y1, float z1, float x2, float y2, float z2)
-{
-	float result = sqrt((x2 - x1)*(x2 - x1) + (y2 - y1)*(y2 - y1) + (z2 - z1)*(z2 - z1));
-
-	return result;
 }
 
 //Getters and Setters
