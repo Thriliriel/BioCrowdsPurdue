@@ -133,12 +133,11 @@ float Agent::CalculaW(int indiceRelacao)
 //calculate F (F is part of weight formula)
 float Agent::CalculaF(int indiceRelacao)
 {
-	Vector3 zero(0, 0, 0);
 	//if (name == "agent0") std::cout << vetorDistRelacaoMarcacaoX.size() << " -- " << vetorDistRelacaoMarcacaoX.size() << "\n";
 	//distance between auxin´s distance and origin (dont know why origin...)
-	float moduloY = Simulation::Distance(vetorDistRelacaoMarcacao[indiceRelacao], zero);
+	float moduloY = Simulation::Distance(vetorDistRelacaoMarcacao[indiceRelacao], Vector3(0, 0, 0));
 	//distance between goal vector and origin (dont know why origin...)
-	float moduloX = Simulation::Distance(g, zero);
+	float moduloX = Simulation::Distance(g, Vector3(0, 0, 0));
 	//vector * vector
 	float produtoEscalar = vetorDistRelacaoMarcacao[indiceRelacao].x * g.x + vetorDistRelacaoMarcacao[indiceRelacao].y * g.y + 
 		vetorDistRelacaoMarcacao[indiceRelacao].z * g.z;
@@ -156,10 +155,7 @@ float Agent::CalculaF(int indiceRelacao)
 //calculate speed vector    
 void Agent::CalculaVelocidade(Vector3 groupCenter, float cohesion, float time)
 {
-	Vector3 zero;
-	zero.x = 0;
-	zero.y = 0;
-	zero.z = 0;
+	Vector3 zero(0, 0, 0);
 	//distance between movement vector and origin
 	float moduloM = Simulation::Distance(m, zero);
 	//if (name == "agent0") std::cout << mX << " -- " << mZ << "\n";
@@ -188,7 +184,7 @@ void Agent::CalculaVelocidade(Vector3 groupCenter, float cohesion, float time)
 	if (moduloM > 0.0001)
 	{
 		//calculate speed vector
-		speed.x = s * (m.z / moduloM);
+		speed.x = s * (m.x / moduloM);
 		speed.y = s * (m.y / moduloM);
 		speed.z = s * (m.z / moduloM);
 	}

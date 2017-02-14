@@ -99,15 +99,10 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 		std::cout << "Qnt Cells: " << cells.size() << "\n";
 
 		//instantiante some goals
-		Vector3 goalPos;
-		goalPos.x = 50; goalPos.y = 0; goalPos.z = 50;
-		DrawGoal("Goal0", goalPos, false);
-		goalPos.x = 42; goalPos.y = 0; goalPos.z = 30;
-		DrawGoal("Goal1", goalPos, false);
-		goalPos.x = 5; goalPos.y = 0; goalPos.z = 80;
-		DrawGoal("Goal2", goalPos, false);
-		goalPos.x = 92; goalPos.y = 0; goalPos.z = 16;
-		DrawGoal("Goal3", goalPos, false);
+		DrawGoal("Goal0", Vector3(50, 0, 50), false);
+		DrawGoal("Goal1", Vector3(42, 0, 30), false);
+		DrawGoal("Goal2", Vector3(5, 0, 80), false);
+		DrawGoal("Goal3", Vector3(92, 0, 16), false);
 
 		//generate all looking for states
 		GenerateLookingFor();
@@ -343,10 +338,7 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 			float distance = scenarioSizeX;
 			int index = -1;
 			for (int g = 0; g < graphNodesPos.size(); g++) {
-				Vector3 graphPos;
-				graphPos.x = graphNodesPos[g].x;
-				graphPos.y = 0;
-				graphPos.z = graphNodesPos[g].z;
+				Vector3 graphPos(graphNodesPos[g].x, 0, graphNodesPos[g].z);
 				float thisDistance = Distance(goals[i].position, graphPos);
 				if (thisDistance < distance) {
 					index = g;
@@ -465,7 +457,7 @@ void Simulation::DefaultValues() {
 	//default node size
 	nodeSize = 1;
 	//quantity of groups that agents will form. If it is zero, means no groups will be used (like groups = false), therefore, each agent will be alone in a group
-	qntGroups = 0;
+	qntGroups = 2;
 	//using A*?
 	useAStar = true;
 	//using Hofstede?
@@ -576,19 +568,36 @@ void Simulation::StartSimulation(int argcp, char **argv) {
 				/*for (int c = 0; c < cells.size(); c++) {
 					for (int a = 0; a < cells[c].myAuxins.size(); a++) {
 						sf::RectangleShape *c1 = new sf::RectangleShape(sf::Vector2f(1, 1));
-						c1->setPosition(cells[c].myAuxins[a].posX + ((screenExtraSize / 2)), cells[c].myAuxins[a].posZ + ((screenExtraSize / 2)));
+						c1->setPosition(cells[c].myAuxins[a].position.x + ((screenExtraSize / 2)), cells[c].myAuxins[a].position.z + ((screenExtraSize / 2)));
 						sf::Color *color = new sf::Color(255, 255, 0, 255);
 						c1->setFillColor(*color);
 						squaresMarkers.push_back(c1);
 					}
 				}*/
-				for (int a = 0; a < graphNodesPos.size(); a++) {
+				/*for (int a = 0; a < graphNodesPos.size(); a++) {
 					sf::RectangleShape *c1 = new sf::RectangleShape(sf::Vector2f(1, 1));
 					c1->setPosition(graphNodesPos[a].x + ((screenExtraSize / 2)), graphNodesPos[a].z + ((screenExtraSize / 2)));
 					sf::Color *color = new sf::Color(255, 255, 0, 255);
 					c1->setFillColor(*color);
 					squaresMarkers.push_back(c1);
-				}
+				}*/
+				/*for (int b = 0; b < agentsGroups.size(); b++) {
+					for (int a = 0; a < agentsGroups[b].agents.size(); a++) {
+						for (int h = 0; h < agentsGroups[b].agents[a].GetAuxins().size(); h++) {
+							sf::RectangleShape *c1 = new sf::RectangleShape(sf::Vector2f(1, 1));
+							c1->setPosition(agentsGroups[b].agents[a].GetAuxins()[h]->position.x + ((screenExtraSize / 2)), agentsGroups[b].agents[a].GetAuxins()[h]->position.z + ((screenExtraSize / 2)));
+							sf::Color *color = new sf::Color(255, 255, 0, 255);
+							c1->setFillColor(*color);
+							squaresMarkers.push_back(c1);
+						}
+
+						sf::RectangleShape *c1 = new sf::RectangleShape(sf::Vector2f(1, 1));
+						c1->setPosition(agentsGroups[b].agents[a].goal.x + ((screenExtraSize / 2)), agentsGroups[b].agents[a].goal.z + ((screenExtraSize / 2)));
+						sf::Color *color = new sf::Color(255, 255, 0, 255);
+						c1->setFillColor(*color);
+						squaresMarkers.push_back(c1);
+					}
+				}*/
 
 				//prepare agents to draw
 				for (int b = 0; b < agentsGroups.size(); b++) {
@@ -903,10 +912,7 @@ void Simulation::LoadConfigFile() {
 				Split(line, ' ', entries);
 
 				int qntAgentsGroup = std::stoi(entries[0]);
-				Vector3 newPosition;
-				newPosition.x = std::stof(entries[1]);
-				newPosition.y = 0;
-				newPosition.z = std::stof(entries[2]);
+				Vector3 newPosition(std::stof(entries[1]), 0, std::stof(entries[2]));
 				float grain = 1;
 				float originalGrain = grain;
 
@@ -1592,10 +1598,10 @@ void Simulation::PlaceAuxinsAsGrid() {
 	//for each cell, we generate his auxins
 	for (int c = 0; c < cells.size(); c++)
 	{
-		//for each line, variating by spacevariation
-		for (float i = cells[c].position.x - cellRadius; i < cells[c].position.x + cellRadius; i = i + spaceVariation) {
-			//for each column, variating by spacevariation
-			for (float j = cells[c].position.z - cellRadius; j < cells[c].position.z + cellRadius; j = j + spaceVariation) {
+		//for each column, variating by spacevariation
+		for (float j = cells[c].position.z - cellRadius; j < cells[c].position.z + cellRadius; j = j + spaceVariation) {
+			//for each line, variating by spacevariation
+			for (float i = cells[c].position.x - cellRadius; i < cells[c].position.x + cellRadius; i = i + spaceVariation) {
 				//if it is not inside an obstacle
 				if (!InsideObstacle(Vector3(i, 0, j)))
 				{
