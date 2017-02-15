@@ -3,19 +3,22 @@ class AStarSearchNode
 {
 	//public attributes
 	public:
-		float x;	 // the (x,y) positions of the node - IN OUR CASE: X, Z
-		float y;
+		//node position
+		Vector3 position;
+		//max world size
 		float maxSizeX;
 		float maxSizeZ;
+		//graph information
 		std::vector<int>* graphNodes;
 		std::vector<Node>* graphNodesPos;
+		//node size (default = 1)
 		float nodeSize;
 
 	//public methods
 	public:
 		AStarSearchNode();
 		~AStarSearchNode();
-		AStarSearchNode(float px, float py, float newMaxSizeX, float newMaxSizeZ, std::vector<int>* newGraphNodes, float newNodeSize, std::vector<Node>* newGraphNodesPos);
+		AStarSearchNode(Vector3 newPosition, float newMaxSizeX, float newMaxSizeZ, std::vector<int>* newGraphNodes, float newNodeSize, std::vector<Node>* newGraphNodesPos);
 		float GoalDistanceEstimate(AStarSearchNode &nodeGoal);
 		bool IsGoal(AStarSearchNode &nodeGoal);
 		bool GetSuccessors(AStarSearch<AStarSearchNode> *astarsearch, AStarSearchNode *parent_node);

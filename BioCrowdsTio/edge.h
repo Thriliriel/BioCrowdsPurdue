@@ -2,18 +2,14 @@
 #ifndef H_EDGE
 #define H_EDGE
 
-#include "vector2.h"
-
-typedef Vector2<float> Vec2f;
-
 class Edge
 {
 public:
-	Edge(const Vec2f &p1, const Vec2f &p2) : p1(p1), p2(p2) {};
+	Edge(const Vector3 &p1, const Vector3 &p2) : p1(p1), p2(p2) {};
 	Edge(const Edge &e) : p1(e.p1), p2(e.p2) {};
 
-	Vec2f p1;
-	Vec2f p2;
+	Vector3 p1;
+	Vector3 p2;
 };
 
 inline std::ostream &operator << (std::ostream &str, Edge const &e)

@@ -36,8 +36,6 @@ typedef struct { Vector3 position; float v1X, v1Z, v2X, v2Z, v3X, v3Z; } Node;
 #include "Hofstede.h"
 #include "Agent.h"
 #include "AgentGroup.h"
-#include "vector2.h"
-#include "triangle.h"
 #include "delaunay.h"
 #include "AStar.h"
 #include "AStarSearchNode.h"

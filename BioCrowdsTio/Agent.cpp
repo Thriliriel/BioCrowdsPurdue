@@ -37,13 +37,9 @@ Agent::~Agent()
 
 void Agent::Start() {
 	Vector3 zero(0, 0, 0);
-	diff.x = goal.x - position.x;
-	diff.y = goal.y - position.y;
-	diff.z = goal.z - position.z;
+	diff = goal - position;
 	diffMod = Simulation::Distance(diff, zero);
-	g.x = diff.x / diffMod;
-	g.y = diff.y / diffMod;
-	g.z = diff.z / diffMod;
+	g = diff / diffMod;
 }
 
 void Agent::Update(std::vector<Sign>* allSigns) {
@@ -60,13 +56,9 @@ void Agent::ClearAgent()
 	vetorDistRelacaoMarcacao.clear();
 	denominadorW = false;
 	m.x = m.y = m.z = 0;
-	diff.x = goal.x - position.x;
-	diff.y = goal.y - position.y;
-	diff.z = goal.z - position.z;
+	diff = goal - position;
 	diffMod = Simulation::Distance(diff, zero);
-	g.x = diff.x / diffMod;
-	g.y = diff.y / diffMod;
-	g.z = diff.z / diffMod;
+	g = diff / diffMod;
 
 	changePosition = true;
 }
@@ -75,9 +67,7 @@ void Agent::ClearAgent()
 void Agent::Caminhe(float time)
 {
 	//std::cout << name << ": SpeedX - " << speedX << " -- SpeedZ - " << speedZ << "-- Time: " << time << "\n";
-	position.x += speed.x * time;
-	position.y += speed.y * time;
-	position.z += speed.z * time;
+	position = position + (speed * time);
 	//std::cout << name << ": PosX - " << posX << " -- PosZ - " << posZ << "-- Time: " << time << "\n";
 }
 
@@ -97,16 +87,13 @@ void Agent::CalculaDirecaoM()
 			valorW = 0.0f;
 
 		//sum the resulting vector * weight (Wk*Dk)
-		m.x += valorW * vetorDistRelacaoMarcacao[k].x * maxSpeed;
-		m.y += valorW * vetorDistRelacaoMarcacao[k].y * maxSpeed;
-		m.z += valorW * vetorDistRelacaoMarcacao[k].z * maxSpeed;
+		m = m + (vetorDistRelacaoMarcacao[k] * valorW * maxSpeed);
 	}
 }
 
 //calculate W
 float Agent::CalculaW(int indiceRelacao)
 {
-	//if (name == "agent0") std::cout << vetorDistRelacaoMarcacaoX.size() << " -- " << vetorDistRelacaoMarcacaoX.size() << "\n";
 	//calculate F (F is part of weight formula)
 	float valorF = CalculaF(indiceRelacao);
 
@@ -130,14 +117,12 @@ float Agent::CalculaW(int indiceRelacao)
 //calculate F (F is part of weight formula)
 float Agent::CalculaF(int indiceRelacao)
 {
-	//if (name == "agent0") std::cout << vetorDistRelacaoMarcacaoX.size() << " -- " << vetorDistRelacaoMarcacaoX.size() << "\n";
 	//distance between auxin´s distance and origin (dont know why origin...)
 	float moduloY = Simulation::Distance(vetorDistRelacaoMarcacao[indiceRelacao], Vector3(0, 0, 0));
 	//distance between goal vector and origin (dont know why origin...)
 	float moduloX = Simulation::Distance(g, Vector3(0, 0, 0));
 	//vector * vector
-	float produtoEscalar = vetorDistRelacaoMarcacao[indiceRelacao].x * g.x + vetorDistRelacaoMarcacao[indiceRelacao].y * g.y + 
-		vetorDistRelacaoMarcacao[indiceRelacao].z * g.z;
+	float produtoEscalar = vetorDistRelacaoMarcacao[indiceRelacao].x * g.x + vetorDistRelacaoMarcacao[indiceRelacao].y * g.y + vetorDistRelacaoMarcacao[indiceRelacao].z * g.z;
 
 	if (moduloY < 0.00001)
 	{
@@ -164,10 +149,7 @@ void Agent::CalculaVelocidade(Vector3 groupCenter, float cohesion, float time)
 	//actual distance from group center position
 	float actualDistance = Simulation::Distance(position, groupCenter);
 	//movement prediction distance
-	Vector3 prediction;
-	prediction.x = position.x + ((s * (m.x / moduloM))*time);
-	prediction.y = position.y + ((s * (m.y / moduloM))*time);
-	prediction.z = position.z + ((s * (m.z / moduloM))*time);
+	Vector3 prediction(position.x + ((s * (m.x / moduloM))*time), position.y + ((s * (m.y / moduloM))*time), position.z + ((s * (m.z / moduloM))*time));
 	float movementPredctionDistance = Simulation::Distance(prediction, groupCenter);
 	//test the movement prediction. If the agent will be too far from group center position, reduce his maxSpeed
 	if (movementPredctionDistance > 3 - cohesion && movementPredctionDistance > actualDistance) {
@@ -181,9 +163,7 @@ void Agent::CalculaVelocidade(Vector3 groupCenter, float cohesion, float time)
 	if (moduloM > 0.0001)
 	{
 		//calculate speed vector
-		speed.x = s * (m.x / moduloM);
-		speed.y = s * (m.y / moduloM);
-		speed.z = s * (m.z / moduloM);
+		speed = (m / moduloM) * s;
 	}
 	else
 	{
@@ -248,7 +228,6 @@ void Agent::FindNearAuxins(float cellRadius, std::vector<Cell>* allCells, std::v
 //check auxins on a cell
 void Agent::CheckAuxinsCell(Cell *neighbourCell, std::vector<Agent>* allAgents)
 {
-	//if (name == "agent0") std::cout << neighbourCell->name << " -- " << allAgents->size() << "\n";
 	//get all auxins on my cell
 	std::vector<Marker>* cellAuxins = neighbourCell->GetAuxins();
 
@@ -290,7 +269,6 @@ void Agent::CheckAuxinsCell(Cell *neighbourCell, std::vector<Agent>* allAgents)
 			AddAuxin(&(*cellAuxins)[i]);
 		}
 	}
-	//if (name == "agent0") std::cout << myAuxins.size() << "\n";
 }
 
 //GET-SET

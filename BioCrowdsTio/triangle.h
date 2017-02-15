@@ -2,20 +2,19 @@
 #ifndef H_TRIANGLE
 #define H_TRIANGLE
 
-#include "vector2.h"
 #include "edge.h"
 
 class Triangle
 {
 public:
-	Triangle(const Vec2f &_p1, const Vec2f &_p2, const Vec2f &_p3);
+	Triangle(const Vector3 &_p1, const Vector3 &_p2, const Vector3 &_p3);
 
-	bool containsVertex(const Vec2f &v);
-	bool circumCircleContains(const Vec2f &v);
+	bool containsVertex(const Vector3 &v);
+	bool circumCircleContains(const Vector3 &v);
 
-	Vec2f p1;
-	Vec2f p2;
-	Vec2f p3;
+	Vector3 p1;
+	Vector3 p2;
+	Vector3 p3;
 	Edge e1;
 	Edge e2;
 	Edge e3;
@@ -23,8 +22,8 @@ public:
 
 inline std::ostream &operator << (std::ostream &str, const Triangle & t)
 {
-	return str << "Triangle:" << std::endl << "\t" << t.p1 << std::endl << "\t" << t.p2 << std::endl << "\t" << t.p3 << std::endl << "\t" << t.e1 << std::endl << "\t" << t.e2 << std::endl << "\t" << t.e3 << std::endl;
-
+	return str << "Triangle:" << std::endl << "\t" << t.p1 << std::endl << "\t" << t.p2 << std::endl << "\t" << t.p3 << std::endl << "\t" << t.e1 << std::endl << "\t" << t.e2 << std::endl << "\t" 
+		<< t.e3 << std::endl;
 }
 
 inline bool operator == (const Triangle &t1, const Triangle &t2)

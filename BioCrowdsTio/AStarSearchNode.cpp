@@ -2,12 +2,11 @@
 
 AStarSearchNode::AStarSearchNode()
 {
-	x = y = 0;
+	position = Vector3(0, 0, 0);
 }
 
-AStarSearchNode::AStarSearchNode(float px, float py, float newMaxSizeX, float newMaxSizeZ, std::vector<int>* newGraphNodes, float newNodeSize, std::vector<Node>* newGraphNodesPos) {
-	x = px; 
-	y = py; 
+AStarSearchNode::AStarSearchNode(Vector3 newPosition, float newMaxSizeX, float newMaxSizeZ, std::vector<int>* newGraphNodes, float newNodeSize, std::vector<Node>* newGraphNodesPos) {
+	position = newPosition;
 	maxSizeX = newMaxSizeX;
 	maxSizeZ = newMaxSizeZ;
 	nodeSize = newNodeSize;
@@ -23,8 +22,8 @@ AStarSearchNode::~AStarSearchNode()
 bool AStarSearchNode::IsSameState(AStarSearchNode &rhs)
 {
 	// same state in a maze search is simply when (x,y) are the same
-	if ((x == rhs.x) &&
-		(y == rhs.y))
+	if ((position.x == rhs.position.x) &&
+		(position.z == rhs.position.z))
 	{
 		return true;
 	}
@@ -43,14 +42,14 @@ void AStarSearchNode::PrintNodeInfo()
 // to the Goal.
 float AStarSearchNode::GoalDistanceEstimate(AStarSearchNode &nodeGoal)
 {
-	return fabsf(x - nodeGoal.x) + fabsf(y - nodeGoal.y);
+	return fabsf(position.x - nodeGoal.position.x) + fabsf(position.z - nodeGoal.position.z);
 }
 
 bool AStarSearchNode::IsGoal(AStarSearchNode &nodeGoal)
 {
 
-	if ((x == nodeGoal.x) &&
-		(y == nodeGoal.y))
+	if ((position.x == nodeGoal.position.x) &&
+		(position.z == nodeGoal.position.z))
 	{
 		return true;
 	}
@@ -69,8 +68,8 @@ bool AStarSearchNode::GetSuccessors(AStarSearch<AStarSearchNode> *astarsearch, A
 
 	if (parent_node)
 	{
-		parent_x = parent_node->x;
-		parent_y = parent_node->y;
+		parent_x = parent_node->position.x;
+		parent_y = parent_node->position.z;
 	}
 
 	AStarSearchNode NewNode;
@@ -79,7 +78,7 @@ bool AStarSearchNode::GetSuccessors(AStarSearch<AStarSearchNode> *astarsearch, A
 	//need to find the nodes which share 2 vertices with this one
 	int index = -1;
 	for (int i = 0; i < graphNodesPos->size(); i++) {
-		if ((*graphNodesPos)[i].position.x == x && (*graphNodesPos)[i].position.z == y) {
+		if ((*graphNodesPos)[i].position.x == position.x && (*graphNodesPos)[i].position.z == position.z) {
 			index = i;
 			break;
 		}
@@ -108,7 +107,7 @@ bool AStarSearchNode::GetSuccessors(AStarSearch<AStarSearchNode> *astarsearch, A
 
 			if (qntShared == 2) {
 				if (!((parent_x == (*graphNodesPos)[i].position.x) && (parent_y == (*graphNodesPos)[i].position.z))) {
-					NewNode = AStarSearchNode((*graphNodesPos)[i].position.x, (*graphNodesPos)[i].position.z, maxSizeX, maxSizeZ, graphNodes, nodeSize, graphNodesPos);
+					NewNode = AStarSearchNode((*graphNodesPos)[i].position, maxSizeX, maxSizeZ, graphNodes, nodeSize, graphNodesPos);
 					astarsearch->AddSuccessor(NewNode);
 				}
 			}
@@ -118,7 +117,7 @@ bool AStarSearchNode::GetSuccessors(AStarSearch<AStarSearchNode> *astarsearch, A
 		float distance = maxSizeX;
 		int index2 = -1;
 		for (int g = 0; g < (*graphNodesPos).size(); g++) {
-			float thisDistance = Simulation::Distance(Vector3(x, 0, y), (*graphNodesPos)[g].position);
+			float thisDistance = Simulation::Distance(position, (*graphNodesPos)[g].position);
 			if (thisDistance < distance) {
 				index2 = g;
 				distance = thisDistance;
@@ -126,7 +125,7 @@ bool AStarSearchNode::GetSuccessors(AStarSearch<AStarSearchNode> *astarsearch, A
 		}
 		
 		if (index2 > -1) {
-			NewNode = AStarSearchNode((*graphNodesPos)[index2].position.x, (*graphNodesPos)[index2].position.z, maxSizeX, maxSizeZ, graphNodes, nodeSize, graphNodesPos);
+			NewNode = AStarSearchNode((*graphNodesPos)[index2].position, maxSizeX, maxSizeZ, graphNodes, nodeSize, graphNodesPos);
 			astarsearch->AddSuccessor(NewNode);
 		}
 	}
@@ -173,7 +172,7 @@ bool AStarSearchNode::GetSuccessors(AStarSearch<AStarSearchNode> *astarsearch, A
 // conceptually where we're moving
 float AStarSearchNode::GetCost(AStarSearchNode &successor)
 {
-	return (float)GetMap(x, y);
+	return (float)GetMap(position.x, position.z);
 }
 
 int AStarSearchNode::GetMap(float px, float py)

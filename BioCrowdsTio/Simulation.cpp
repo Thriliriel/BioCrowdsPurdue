@@ -136,9 +136,8 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 					tries = 0;
 				}
 				//generate the group position
-				newPosition.x = RandomFloat(cells[cellIndex].position.x - cellRadius, cells[cellIndex].position.x + cellRadius);
-				newPosition.y = 0;
-				newPosition.z = RandomFloat(cells[cellIndex].position.z - cellRadius, cells[cellIndex].position.z + cellRadius);
+				newPosition = Vector3(RandomFloat(cells[cellIndex].position.x - cellRadius, cells[cellIndex].position.x + cellRadius), 0, 
+					RandomFloat(cells[cellIndex].position.z - cellRadius, cells[cellIndex].position.z + cellRadius));
 				pCollider = InsideObstacle(newPosition);
 				if (pCollider) {
 					tries++;
@@ -274,18 +273,18 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 	//just need to triangulate if using A*
 	if (useAStar) {
 		//triangulate the scene
-		std::vector<Vec2f> points;
+		std::vector<Vector3> points;
 
 		//scenario boundaries
-		points.push_back(Vec2f(0, 0));
-		points.push_back(Vec2f(0, scenarioSizeZ));
-		points.push_back(Vec2f(scenarioSizeX, scenarioSizeZ));
-		points.push_back(Vec2f(scenarioSizeX, 0));
+		points.push_back(Vector3(0, 0, 0));
+		points.push_back(Vector3(0, 0, scenarioSizeZ));
+		points.push_back(Vector3(scenarioSizeX, 0, scenarioSizeZ));
+		points.push_back(Vector3(scenarioSizeX, 0, 0));
 
 		//add the points
 		for (int o = 0; o < obstacles.size(); o++) {
 			for (int q = 0; q < obstacles[o].size(); q++) {
-				points.push_back(Vec2f(obstacles[o][q].x, obstacles[o][q].z));
+				points.push_back(Vector3(obstacles[o][q].x, 0, obstacles[o][q].z));
 			}
 		}
 
@@ -301,7 +300,7 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 		triangles.clear();
 		//end triangulate the scene
 
-		//create the graph nodes
+		//create the graph nodes - FOR GRID GRAPH
 		/*for (float j = 0; j < scenarioSizeZ; j = j + nodeSize) {
 			for (float i = 0; i < scenarioSizeX; i = i + nodeSize) {
 				int weight = 1;
@@ -346,7 +345,7 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 			if (index > -1) {
 				//need to reposition his sign too
 				for (int s = 0; s < signs.size(); s++) {
-					if (signs[s].position.x == goals[i].position.x && signs[s].position.z == goals[i].position.z) {
+					if (signs[s].position == goals[i].position) {
 						signs[s].position = graphNodesPos[index].position;
 						break;
 					}
@@ -452,7 +451,7 @@ void Simulation::DefaultValues() {
 	//default node size
 	nodeSize = 1;
 	//quantity of groups that agents will form. If it is zero, means no groups will be used (like groups = false), therefore, each agent will be alone in a group
-	qntGroups = 2;
+	qntGroups = 0;
 	//using A*?
 	useAStar = true;
 	//using Hofstede?
@@ -1093,13 +1092,13 @@ void Simulation::LoadConfigFile() {
 					if (obstacles.size() == 1)
 					{
 						//check group vertices to find the corners
-						int ind = round(RandomFloat(0, obstacles[0].size()-1));
+						int ind = (int)(RandomFloat(0, obstacles[0].size() - 0.1f));
 						newPosition = obstacles[0][ind];
 						bool newPositionOK = true;
 
 						//check every sign
 						for (int p = 0; p < signs.size(); p++) {
-							if (signs[p].position.x == newPosition.x && signs[p].position.z == newPosition.z) {
+							if (signs[p].position == newPosition) {
 								newPositionOK = false;
 								break;
 							}
@@ -1108,14 +1107,14 @@ void Simulation::LoadConfigFile() {
 						//while newPosition is inside the already used positions, we try again
 						while (!newPositionOK)
 						{
-							ind = round(RandomFloat(0, obstacles[0].size()-1));
+							ind = (int)(RandomFloat(0, obstacles[0].size() - 0.1f));
 							newPosition = obstacles[0][ind];
 
 							newPositionOK = true;
 
 							//check every sign
 							for (int p = 0; p < signs.size(); p++) {
-								if (signs[p].position.x == newPosition.x && signs[p].position.z == newPosition.z) {
+								if (signs[p].position == newPosition) {
 									newPositionOK = false;
 									break;
 								}
@@ -1125,9 +1124,9 @@ void Simulation::LoadConfigFile() {
 					else
 					{
 						//sort out an obstacle
-						int obsInd = round(RandomFloat(0, obstacles.size() - 1));
+						int obsInd = (int)(RandomFloat(0, obstacles.size() - 0.1f));
 						//sort out a vertice index for this obstacle
-						int ind = round(RandomFloat(0, obstacles[obsInd].size() - 1));
+						int ind = (int)(RandomFloat(0, obstacles[obsInd].size() - 0.1f));
 
 						//new position
 						newPosition = obstacles[0][ind];
@@ -1135,7 +1134,7 @@ void Simulation::LoadConfigFile() {
 
 						//check every sign
 						for (int p = 0; p < signs.size(); p++) {
-							if (signs[p].position.x == newPosition.x && signs[p].position.z == newPosition.z) {
+							if (signs[p].position == newPosition) {
 								newPositionOK = false;
 								break;
 							}
@@ -1145,9 +1144,9 @@ void Simulation::LoadConfigFile() {
 						while (!newPositionOK)
 						{
 							//sort out an obstacle
-							int obsInd = round(RandomFloat(0, obstacles.size() - 1));
+							int obsInd = (int)(RandomFloat(0, obstacles.size() - 0.1f));
 							//sort out a vertice index for this obstacle
-							int ind = round(RandomFloat(0, obstacles[obsInd].size() - 1));
+							int ind = (int)(RandomFloat(0, obstacles[obsInd].size() - 0.1f));
 
 							//new position
 							newPosition = obstacles[0][ind];
@@ -1155,7 +1154,7 @@ void Simulation::LoadConfigFile() {
 
 							//check every sign
 							for (int p = 0; p < signs.size(); p++) {
-								if (signs[p].position.x == newPosition.x && signs[p].position.z == newPosition.z) {
+								if (signs[p].position == newPosition) {
 									newPositionOK = false;
 									break;
 								}
@@ -1336,10 +1335,7 @@ void Simulation::LoadCellsAuxins() {
 					if (entries.size() > 0)
 					{
 						//new cell
-						Vector3 cellPos;
-						cellPos.x = std::stof(entries[1]);
-						cellPos.y = std::stof(entries[2]);
-						cellPos.z = std::stof(entries[3]);
+						Vector3 cellPos(std::stof(entries[1]), std::stof(entries[2]), std::stof(entries[3]));
 						Cell newCell(cellPos, entries[0]);
 						cellRadius = std::stof(entries[4]);
 						cells.push_back(newCell);
@@ -1362,10 +1358,7 @@ void Simulation::LoadCellsAuxins() {
 						}
 
 						if (ind > -1) {
-							Vector3 markerPos;
-							markerPos.x = std::stof(entries[1]);
-							markerPos.y = std::stof(entries[2]);
-							markerPos.z = std::stof(entries[3]);
+							Vector3 markerPos(std::stof(entries[1]), std::stof(entries[2]), std::stof(entries[3]));
 							Marker newMarker(markerPos);
 							newMarker.name = entries[0];
 							cells[ind].AddAuxin(newMarker);
@@ -1411,10 +1404,7 @@ void Simulation::LoadCellsAuxins() {
 				Split(line, ' ', entries);
 
 				//instantiante it
-				Vector3 goalPos;
-				goalPos.x = std::stof(entries[1]);
-				goalPos.y = 0;
-				goalPos.z = std::stof(entries[2]);
+				Vector3 goalPos(std::stof(entries[1]), 0, std::stof(entries[2]));
 				DrawGoal(entries[0], goalPos, false);
 			}
 		}
@@ -1514,10 +1504,7 @@ void Simulation::PlaceAuxins() {
 		for (int i = 0; i < qntAuxins; i++)
 		{
 			//k = ((float)rand()) / ((float)RAND_MAX) ;
-			Vector3 newPosition;
-			newPosition.x = RandomFloat(cells[c].position.x - cellRadius, cells[c].position.x + cellRadius);
-			newPosition.y = 0;
-			newPosition.z = RandomFloat(cells[c].position.z - cellRadius, cells[c].position.z + cellRadius);
+			Vector3 newPosition(RandomFloat(cells[c].position.x - cellRadius, cells[c].position.x + cellRadius), 0, RandomFloat(cells[c].position.z - cellRadius, cells[c].position.z + cellRadius));
 			//std::cout << cells[c].name << ": PosX - " << cells[c].position.x << " -- " << newPosition.x << " -- " << newPosition.z << "\n";
 
 			//see if there are auxins in this radius. if not, instantiante
@@ -1744,17 +1731,6 @@ void Simulation::Update(double elapsed) {
 		simulationTime = clock() - simulationTime;
 
 		//reset auxins
-		//it must be here because we need to make sure they reset before calculate the new auxins
-		/*for (int i = 0; i < cells.size(); i++)
-		{
-			std::vector<Marker>* allAuxins = cells[i].GetAuxins();
-			for (int j = 0; j < allAuxins->size(); j++)
-			{
-				(*allAuxins)[j].ResetAuxin();
-			}
-		}*/
-		
-		//reset auxins
 		for (int j = 0; j < agentsGroups.size(); j++) {
 			for (int i = 0; i < agentsGroups[j].agents.size(); i++) {
 				std::vector<Marker*> axAge = agentsGroups[j].agents[i].GetAuxins();
@@ -1825,15 +1801,14 @@ void Simulation::Update(double elapsed) {
 
 				//now, we check if agent is stuck with another agent
 				//if so, change places
-				if (agentsGroups[f].agents[i].speed.x == 0 && agentsGroups[f].agents[i].speed.y == 0 && agentsGroups[f].agents[i].speed.z == 0)
+				if (agentsGroups[f].agents[i].speed == 0.0f)
 				{
 					//check distance between this agent and every other agent
 					bool agentNear = false;
 					for (int q = 0; q < agentsGroups.size(); q++) {
 						for (int j = 0; j < agentsGroups[q].agents.size(); j++) {
 							//if they are too near and both with zero speed, probally stuck. Swap positions if this agent may do it
-							if (Distance(agentsGroups[f].agents[i].position, agentsGroups[q].agents[j].position) < 0.1f && 
-								(agentsGroups[q].agents[j].speed.x == 0 && agentsGroups[q].agents[j].speed.y == 0 && agentsGroups[q].agents[j].speed.z == 0) && 
+							if (Distance(agentsGroups[f].agents[i].position, agentsGroups[q].agents[j].position) < 0.1f && (agentsGroups[q].agents[j].speed == 0.0f) &&
 								agentsGroups[f].agents[i].changePosition && i != j) {
 								std::cout << "\n LOCKED: " + agentsGroups[f].agents[i].name + " with " + agentsGroups[q].agents[j].name + "\n";
 								//system("PAUSE");
@@ -1940,13 +1915,9 @@ void Simulation::Update(double elapsed) {
 			//after all agents walked, find the centroid of all agents to update center position of the group
 			Vector3 center(0, 0, 0);
 			for (int j = 0; j < agentsGroups[f].agents.size(); j++) {
-				center.x += agentsGroups[f].agents[j].position.x;
-				center.z += agentsGroups[f].agents[j].position.z;
+				center = center + agentsGroups[f].agents[j].position;
 			}
-			Vector3 newPosition;
-			newPosition.x = center.x / agentsGroups[f].agents.size();
-			newPosition.y = 0;
-			newPosition.z = center.z / agentsGroups[f].agents.size();
+			Vector3 newPosition = center / (float)agentsGroups[f].agents.size();
 			agentsGroups[f].position = newPosition;
 
 			//need to change path node?
@@ -2719,7 +2690,7 @@ Vector3 Simulation::GeneratePosition(int groupIndex, bool useCenter) {
 		}
 	}
 
-	//even so, if we are an obstacle, cannot instantiate either
+	//even so, if we are inside an obstacle, cannot instantiate either
 	//just need to check for obstacle if found no player, otherwise it will not be instantiated anyway
 	if (!pCollider) {
 		pCollider = InsideObstacle(newPosition);
@@ -2961,17 +2932,17 @@ void Simulation::UnlockAgent(Agent* agentToUnlock) {
 //calculate mean points
 void Simulation::CalculateMeanPoints(std::vector<Triangle>* triangles) {
 	for (auto &t : *triangles) {
-		Vector3 soma((t.p1.x + t.p2.x + t.p3.x) / 3, 0, (t.p1.y + t.p2.y + t.p3.y) / 3);
+		Vector3 soma((t.p1.x + t.p2.x + t.p3.x) / 3, 0, (t.p1.z + t.p2.z + t.p3.z) / 3);
 
 		if (!InsideObstacle(soma)) {
 			Node node;
 			node.position = soma;
 			node.v1X = t.p1.x;
-			node.v1Z = t.p1.y;
+			node.v1Z = t.p1.z;
 			node.v2X = t.p2.x;
-			node.v2Z = t.p2.y;
+			node.v2Z = t.p2.z;
 			node.v3X = t.p3.x;
-			node.v3Z = t.p3.y;
+			node.v3Z = t.p3.z;
 
 			graphNodes.push_back(1);
 			graphNodesPos.push_back(node);
@@ -2996,8 +2967,7 @@ void Simulation::AStarPath(AgentGroup* agentPath) {
 		// Create a start state
 		AStarSearchNode nodeStart;
 
-		nodeStart.x = agentPath->position.x;
-		nodeStart.y = agentPath->position.z;
+		nodeStart.position = agentPath->position;
 		nodeStart.maxSizeX = scenarioSizeX;
 		nodeStart.maxSizeZ = scenarioSizeZ;
 		nodeStart.graphNodes = &graphNodes;
@@ -3006,8 +2976,7 @@ void Simulation::AStarPath(AgentGroup* agentPath) {
 
 		// Define the goal state
 		AStarSearchNode nodeEnd;
-		nodeEnd.x = agentPath->go[0]->position.x;
-		nodeEnd.y = agentPath->go[0]->position.z;
+		nodeEnd.position = agentPath->go[0]->position;
 		nodeEnd.maxSizeX = scenarioSizeX;
 		nodeEnd.maxSizeZ = scenarioSizeZ;
 		nodeEnd.graphNodes = &graphNodes;
@@ -3052,7 +3021,7 @@ void Simulation::AStarPath(AgentGroup* agentPath) {
 					break;
 				}
 
-				agentPath->path.push_back(Vector3(node->x, 0, node->y));
+				agentPath->path.push_back(node->position);
 
 				//node->PrintNodeInfo();
 				steps++;

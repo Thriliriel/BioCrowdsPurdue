@@ -1,23 +1,23 @@
 #include "stdafx.h"
 #include <algorithm>
 
-const std::vector<Triangle>& Delaunay::triangulate(std::vector<Vec2f> &vertices)
+const std::vector<Triangle>& Delaunay::triangulate(std::vector<Vector3> &vertices)
 {
 	// Store the vertices localy
 	_vertices = vertices;
 
 	// Determinate the super triangle
 	float minX = vertices[0].x;
-	float minY = vertices[0].y;
+	float minY = vertices[0].z;
 	float maxX = minX;
 	float maxY = minY;
 
 	for (std::size_t i = 0; i < vertices.size(); ++i)
 	{
 		if (vertices[i].x < minX) minX = vertices[i].x;
-		if (vertices[i].y < minY) minY = vertices[i].y;
+		if (vertices[i].z < minY) minY = vertices[i].z;
 		if (vertices[i].x > maxX) maxX = vertices[i].x;
-		if (vertices[i].y > maxY) maxY = vertices[i].y;
+		if (vertices[i].z > maxY) maxY = vertices[i].z;
 	}
 
 	float dx = maxX - minX;
@@ -26,9 +26,9 @@ const std::vector<Triangle>& Delaunay::triangulate(std::vector<Vec2f> &vertices)
 	float midx = (minX + maxX) / 2.f;
 	float midy = (minY + maxY) / 2.f;
 
-	Vec2f p1(midx - 20 * deltaMax, midy - deltaMax);
-	Vec2f p2(midx, midy + 20 * deltaMax);
-	Vec2f p3(midx + 20 * deltaMax, midy - deltaMax);
+	Vector3 p1(midx - 20 * deltaMax, 0, midy - deltaMax);
+	Vector3 p2(midx, 0, midy + 20 * deltaMax);
+	Vector3 p3(midx + 20 * deltaMax, 0, midy - deltaMax);
 
 	//std::cout << "Super triangle " << std::endl << Triangle(p1, p2, p3) << std::endl;
 
