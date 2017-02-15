@@ -19,9 +19,7 @@ Agent::Agent(Vector3 newPosition, std::string newName) {
 	denominadorW = false;
 	maxSpeed = 1.5f;
 	agentRadius = 1;
-	speed.x = 0;
-	speed.y = 0;
-	speed.z = 0;
+	speed = Vector3(0, 0, 0);
 	fieldOfView = 10;
 	idleTimer = 0;
 	maxIdleTimer = 50;
@@ -90,7 +88,6 @@ void Agent::Caminhe(float time)
 //distance of the auxin from the agent
 void Agent::CalculaDirecaoM()
 {
-	//if (name == "agent0") std::cout << vetorDistRelacaoMarcacaoX.size() << " -- " << vetorDistRelacaoMarcacaoZ.size() << "\n";
 	//for each agent´s auxin
 	for (int k = 0; k < vetorDistRelacaoMarcacao.size(); k++)
 	{
@@ -165,7 +162,7 @@ void Agent::CalculaVelocidade(Vector3 groupCenter, float cohesion, float time)
 	float thisMaxSpeed = maxSpeed;
 
 	//actual distance from group center position
-	float actualDistance = Simulation::Distance(position, zero);
+	float actualDistance = Simulation::Distance(position, groupCenter);
 	//movement prediction distance
 	Vector3 prediction;
 	prediction.x = position.x + ((s * (m.x / moduloM))*time);
@@ -219,21 +216,6 @@ void Agent::FindNearAuxins(float cellRadius, std::vector<Cell>* allCells, std::v
 		{
 			//if it is out of the world, continue
 			if (i >= worldSizeX || j >= worldSizeZ) continue;
-
-			//THIS WAY IS FAR SLOWER, SO USE THE CRAZY FORMULA XD
-			/*float nameX = i - cellRadius;
-			float nameZ = j - cellRadius;
-
-			//find the cell
-			int indCell = -1;
-			//iterate through all cells to find this neighbour
-			for (int c = 0; c < allCells->size(); c++) {
-				if ((*allCells)[c].name == "cell" + std::to_string(nameX) + "-" + std::to_string(nameZ)) {
-					indCell = c;
-					//found, can break
-					break;
-				}
-			}*/
 
 			//crazy formula to get the right index of the neighbour cell
 			//formula x -> y

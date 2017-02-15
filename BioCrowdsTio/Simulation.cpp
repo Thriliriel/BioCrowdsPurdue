@@ -1,7 +1,5 @@
 #include "stdafx.h"
 
-//typedef struct { int x, y, weight; } Node;
-
 Simulation::Simulation()
 {
 	//start with default values
@@ -240,7 +238,7 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 
 			float meanDist = 0.1f;
 			//use the mean distance from group Hofstead
-			if (useHofstede || true) {
+			if (useHofstede) {
 				meanDist = agentsGroups[groupIndex].GetHofstede().GetMeanDist();
 			}
 
@@ -338,8 +336,7 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 			float distance = scenarioSizeX;
 			int index = -1;
 			for (int g = 0; g < graphNodesPos.size(); g++) {
-				Vector3 graphPos(graphNodesPos[g].x, 0, graphNodesPos[g].z);
-				float thisDistance = Distance(goals[i].position, graphPos);
+				float thisDistance = Distance(goals[i].position, graphNodesPos[g].position);
 				if (thisDistance < distance) {
 					index = g;
 					distance = thisDistance;
@@ -350,14 +347,12 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 				//need to reposition his sign too
 				for (int s = 0; s < signs.size(); s++) {
 					if (signs[s].position.x == goals[i].position.x && signs[s].position.z == goals[i].position.z) {
-						signs[s].position.x = graphNodesPos[index].x;
-						signs[s].position.z = graphNodesPos[index].z;
+						signs[s].position = graphNodesPos[index].position;
 						break;
 					}
 				}
 
-				goals[i].position.x = graphNodesPos[index].x;
-				goals[i].position.z = graphNodesPos[index].z;
+				goals[i].position = graphNodesPos[index].position;
 			}
 		}
 
@@ -912,7 +907,17 @@ void Simulation::LoadConfigFile() {
 				Split(line, ' ', entries);
 
 				int qntAgentsGroup = std::stoi(entries[0]);
-				Vector3 newPosition(std::stof(entries[1]), 0, std::stof(entries[2]));
+				Vector3 newPosition;
+				//the index where the pairies goal/intentions start
+				int pairIndex = 3;
+				//if using Hofstede, the next 4 index are PDI, MAS, LTO and ING. So, position is right after
+				if (useHofstede) {
+					newPosition = Vector3(std::stof(entries[5]), 0, std::stof(entries[6]));
+					pairIndex = 7;
+				}//else, it is right after the qntAgents in group
+				else {
+					newPosition = Vector3(std::stof(entries[1]), 0, std::stof(entries[2]));
+				}
 				float grain = 1;
 				float originalGrain = grain;
 
@@ -968,10 +973,9 @@ void Simulation::LoadConfigFile() {
 					if (useHofstede) {
 						//calculate the group hofstede
 						//start the hofstede
-						Hofstede hof(1);
+						Hofstede hof;
 						//Hofstede::CalculateHofstede(int pdi, int mas, int lto, int ing)
-						//@TODO: bring from file
-						hof.CalculateHofstede(1, 1, 1, 1);
+						hof.CalculateHofstede(std::stoi(entries[1]), std::stoi(entries[2]), std::stoi(entries[3]), std::stoi(entries[4]));
 
 						newAgentGroup.SetHofstede(hof);
 					}//else, start it empty
@@ -981,7 +985,7 @@ void Simulation::LoadConfigFile() {
 
 					//set his goals
 					//go 2 in 2, since it is a pair between goal and intention to that goal
-					for (int j = 3; j < entries.size(); j = j + 2)
+					for (int j = pairIndex; j < entries.size(); j = j + 2)
 					{
 						//there is an empty space on the end of the line, dont know why.
 						if (entries[j] == "") continue;
@@ -1432,7 +1436,7 @@ void Simulation::LoadCellsAuxins() {
 	}
 
 	/*for (int i = 0; i < signs.size(); i++) {
-		std::cout << signs[i].posX << "\n";
+		std::cout << signs[i].position.x << "\n";
 	}*/
 }
 
@@ -1514,7 +1518,7 @@ void Simulation::PlaceAuxins() {
 			newPosition.x = RandomFloat(cells[c].position.x - cellRadius, cells[c].position.x + cellRadius);
 			newPosition.y = 0;
 			newPosition.z = RandomFloat(cells[c].position.z - cellRadius, cells[c].position.z + cellRadius);
-			//std::cout << cells[c].name << ": PosX - " << cells[c].posX << " -- " << x << " -- " << z << "\n";
+			//std::cout << cells[c].name << ": PosX - " << cells[c].position.x << " -- " << newPosition.x << " -- " << newPosition.z << "\n";
 
 			//see if there are auxins in this radius. if not, instantiante
 			std::vector<Marker>* allAuxinsInCell = cells[c].GetAuxins();
@@ -1870,7 +1874,7 @@ void Simulation::Update(double elapsed) {
 				agentsGroups[f].agents[i].Caminhe(elapsed);
 
 				//std::cout << "Segundos: " << ((float)simulationT) / CLOCKS_PER_SEC << "\n";
-				//std::cout << agents[i].name << ": " << agents[i].posX << "-" << agents[i].posZ << "\n";
+				//std::cout << agents[i].name << ": " << agents[i].position.x << "-" << agents[i].position.z << "\n";
 
 				//verify agent position, in relation to the goal.
 				//if the distance between them is less than 1 (arbitrary, maybe authors have a better solution), he arrived. Destroy it so
@@ -1900,8 +1904,8 @@ void Simulation::Update(double elapsed) {
 						if (agentsGroups[f].go[0]->name == "LookingFor") {
 							ChangeLookingFor(agentsGroups[f].go[0]);
 							/*for (int j = 0; j < agents[i].go.size(); j++) {
-								std::cout << agents[i].go[j]->name << ": PosX - " << agents[i].go[j]->posX << " -- PosZ - "
-									<< agents[i].go[j]->posZ << " -- Intention: " << agents[i].intentions[j] << "\n";
+								std::cout << agents[i].go[j]->name << ": PosX - " << agents[i].go[j]->position.x << " -- PosZ - "
+									<< agents[i].go[j]->position.z << " -- Intention: " << agents[i].intentions[j] << "\n";
 							}*/
 
 							//need to recalculate path
@@ -1979,8 +1983,6 @@ void Simulation::SaveExitFile() {
 	}
 	if (agentsSize > 0)
 	{
-		//exitFile << "<FRAME FrameAtual='" << frameCount << "' qtdPos='10'>";
-		
 		//each line: frame, agents name, positionx, positiony, positionz, goal object name, cell name
 		//separated with ;
 		//for each agent
@@ -1990,14 +1992,8 @@ void Simulation::SaveExitFile() {
 				exitFile << std::to_string((((float)clock() - startTime) / CLOCKS_PER_SEC) - lastFrameCount) + ";" + agentsGroups[j].agents[i].name + ";"
 					+ std::to_string(agentsGroups[j].agents[i].position.x) + ";" + std::to_string(agentsGroups[j].agents[i].position.y) + ";" + std::to_string(agentsGroups[j].agents[i].position.z) + ";" +
 					agentsGroups[j].go[0]->name + ";" + agentsGroups[j].agents[i].GetCell()->name + "\n";
-
-				//invert Y and Z, since the visualisation works with X and Y
-				//exitFile << "<AGENT id='" + std::to_string(i) + "'>\n<POSITION>"+ std::to_string(agents[i].posX) +" "+ std::to_string(agents[i].posZ) +" "+ std::to_string(agents[i].posY) +"</POSITION>\n</AGENT>\n";
 			}
 		}
-
-		//exitFile << "</FRAME>";
-		//frameCount++;
 	}
 }
 
@@ -2160,7 +2156,7 @@ void Simulation::DrawObstacles() {
 
 //draw each obstacle, placing its vertices on the verticesObstacles. So, signs can be instantiated on those places
 void Simulation::DrawObstacle(std::vector<Vector3> vertices, std::vector<int> triangles) {
-	//X vertices
+	//vertices
 	std::vector<Vector3> polygon;
 
 	for (int i = 0; i < vertices.size(); i++) {
@@ -2716,7 +2712,7 @@ Vector3 Simulation::GeneratePosition(int groupIndex, bool useCenter) {
 
 	for (int j = 0; j < agentsGroups[groupIndex].agents.size(); j++) {
 		//@TODO: mean dist is with weird values
-		//if (Distance(x, 0, z, agentsGroups[groupIndex].agents[j].posX, agentsGroups[groupIndex].agents[j].posY, agentsGroups[groupIndex].agents[j].posZ) < meanDist) {
+		//if (Distance(newPosition, agentsGroups[groupIndex].agents[j].position) < meanDist) {
 		if (Distance(newPosition, agentsGroups[groupIndex].agents[j].position) < 0.1f) {
 			pCollider = true;
 			break;
@@ -2750,9 +2746,7 @@ void Simulation::ChangeLookingFor(Goal* changeLF) {
 		//choose a new random node
 		if (useAStar) {
 			int index = (int)RandomFloat(0, graphNodesPos.size() - 1);
-			changeLF->position.x = graphNodesPos[index].x;
-			changeLF->position.y = 0;
-			changeLF->position.z = graphNodesPos[index].z;
+			changeLF->position = graphNodesPos[index].position;
 			break;
 		}else{
 			Vector3 newPosition((int)RandomFloat(0, scenarioSizeX), 0, (int)RandomFloat(0, scenarioSizeZ));
@@ -2971,8 +2965,7 @@ void Simulation::CalculateMeanPoints(std::vector<Triangle>* triangles) {
 
 		if (!InsideObstacle(soma)) {
 			Node node;
-			node.x = soma.x;
-			node.z = soma.z;
+			node.position = soma;
 			node.v1X = t.p1.x;
 			node.v1Z = t.p1.y;
 			node.v2X = t.p2.x;

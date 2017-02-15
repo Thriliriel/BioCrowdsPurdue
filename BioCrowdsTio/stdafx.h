@@ -14,9 +14,6 @@
 #include <QtConcurrent/qtconcurrentrun.h>
 #include <QApplication>*/
 
-//node struct - position x, position z, triangle vertices position
-typedef struct { float x, z, v1X, v1Z, v2X, v2Z, v3X, v3Z; } Node;
-
 #include <stdio.h>
 #include <string>
 #include <tchar.h>
@@ -28,6 +25,10 @@ typedef struct { float x, z, v1X, v1Z, v2X, v2Z, v3X, v3Z; } Node;
 #include <math.h>
 #include <time.h>
 #include "Vector3.h"
+
+//node struct - Vector3 position, triangle vertices position
+typedef struct { Vector3 position; float v1X, v1Z, v2X, v2Z, v3X, v3Z; } Node;
+
 #include "Goal.h"
 #include "Sign.h"
 #include "Marker.h"

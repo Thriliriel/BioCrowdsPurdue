@@ -1,5 +1,4 @@
 #include "stdafx.h"
-#include "delaunay.h"
 #include <algorithm>
 
 const std::vector<Triangle>& Delaunay::triangulate(std::vector<Vec2f> &vertices)

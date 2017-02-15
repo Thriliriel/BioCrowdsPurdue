@@ -79,7 +79,7 @@ bool AStarSearchNode::GetSuccessors(AStarSearch<AStarSearchNode> *astarsearch, A
 	//need to find the nodes which share 2 vertices with this one
 	int index = -1;
 	for (int i = 0; i < graphNodesPos->size(); i++) {
-		if ((*graphNodesPos)[i].x == x && (*graphNodesPos)[i].z == y) {
+		if ((*graphNodesPos)[i].position.x == x && (*graphNodesPos)[i].position.z == y) {
 			index = i;
 			break;
 		}
@@ -107,8 +107,8 @@ bool AStarSearchNode::GetSuccessors(AStarSearch<AStarSearchNode> *astarsearch, A
 			}
 
 			if (qntShared == 2) {
-				if (!((parent_x == (*graphNodesPos)[i].x) && (parent_y == (*graphNodesPos)[i].z))) {
-					NewNode = AStarSearchNode((*graphNodesPos)[i].x, (*graphNodesPos)[i].z, maxSizeX, maxSizeZ, graphNodes, nodeSize, graphNodesPos);
+				if (!((parent_x == (*graphNodesPos)[i].position.x) && (parent_y == (*graphNodesPos)[i].position.z))) {
+					NewNode = AStarSearchNode((*graphNodesPos)[i].position.x, (*graphNodesPos)[i].position.z, maxSizeX, maxSizeZ, graphNodes, nodeSize, graphNodesPos);
 					astarsearch->AddSuccessor(NewNode);
 				}
 			}
@@ -118,7 +118,7 @@ bool AStarSearchNode::GetSuccessors(AStarSearch<AStarSearchNode> *astarsearch, A
 		float distance = maxSizeX;
 		int index2 = -1;
 		for (int g = 0; g < (*graphNodesPos).size(); g++) {
-			float thisDistance = Distance(x, 0, y, (*graphNodesPos)[g].x, 0, (*graphNodesPos)[g].z);
+			float thisDistance = Simulation::Distance(Vector3(x, 0, y), (*graphNodesPos)[g].position);
 			if (thisDistance < distance) {
 				index2 = g;
 				distance = thisDistance;
@@ -126,7 +126,7 @@ bool AStarSearchNode::GetSuccessors(AStarSearch<AStarSearchNode> *astarsearch, A
 		}
 		
 		if (index2 > -1) {
-			NewNode = AStarSearchNode((*graphNodesPos)[index2].x, (*graphNodesPos)[index2].z, maxSizeX, maxSizeZ, graphNodes, nodeSize, graphNodesPos);
+			NewNode = AStarSearchNode((*graphNodesPos)[index2].position.x, (*graphNodesPos)[index2].position.z, maxSizeX, maxSizeZ, graphNodes, nodeSize, graphNodesPos);
 			astarsearch->AddSuccessor(NewNode);
 		}
 	}
@@ -190,7 +190,7 @@ int AStarSearchNode::GetMap(float px, float py)
 	//find by position
 	int index = -1;
 	for (int i = 0; i < graphNodesPos->size(); i++) {
-		if ((*graphNodesPos)[i].x == px && (*graphNodesPos)[i].z == py) {
+		if ((*graphNodesPos)[i].position.x == px && (*graphNodesPos)[i].position.z == py) {
 			index = i;
 			break;
 		}
@@ -206,12 +206,4 @@ int AStarSearchNode::GetMap(float px, float py)
 	//std::cout << px << " - " << py << ": " << (*graphNodes)[(px*maxSizeZ) + py] << "\n";
 	//return (*graphNodes)[(py*maxSizeX) + px];
 	//return (*graphNodes)[((px / nodeSize)*(maxSizeZ / nodeSize)) + (py / nodeSize)];
-}
-
-//distance between 2 points
-float AStarSearchNode::Distance(float x1, float y1, float z1, float x2, float y2, float z2)
-{
-	float result = sqrt((x2 - x1)*(x2 - x1) + (y2 - y1)*(y2 - y1) + (z2 - z1)*(z2 - z1));
-
-	return result;
 }
