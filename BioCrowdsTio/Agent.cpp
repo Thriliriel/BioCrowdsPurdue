@@ -174,7 +174,7 @@ void Agent::CalculaVelocidade(Vector3 groupCenter, float cohesion, float time)
 
 //find all auxins near him (Voronoi Diagram)
 //call this method from game controller, to make it sequential for each agent
-void Agent::FindNearAuxins(float cellRadius, std::vector<Cell>* allCells, std::vector<Agent>* allAgents, float worldSizeX, float worldSizeZ) {
+void Agent::FindNearAuxins(float cellRadius, std::vector<Cell>* allCells, std::vector<Agent>* allAgents, Vector3 worldSize) {
 	//clear them all, for obvious reasons
 	myAuxins.clear();
 	//std::cout << cell->name << "\n";
@@ -195,13 +195,13 @@ void Agent::FindNearAuxins(float cellRadius, std::vector<Cell>* allCells, std::v
 		for (float j = startZ; j <= endZ; j = j + (cellRadius * 2))
 		{
 			//if it is out of the world, continue
-			if (i >= worldSizeX || j >= worldSizeZ) continue;
+			if (i >= worldSize.x || j >= worldSize.z) continue;
 
 			//crazy formula to get the right index of the neighbour cell
 			//formula x -> y
-			//int indCell = (((i - cellRadius) / (cellRadius * 2)) * (worldSizeZ / (cellRadius * 2))) + ((j - cellRadius) / (cellRadius * 2));
+			//int indCell = (((i - cellRadius) / (cellRadius * 2)) * (worldSize.z / (cellRadius * 2))) + ((j - cellRadius) / (cellRadius * 2));
 			//formula y -> x
-			int indCell = (((j - cellRadius) / (cellRadius * 2)) * (worldSizeX / (cellRadius * 2))) + ((i - cellRadius) / (cellRadius * 2));
+			int indCell = (((j - cellRadius) / (cellRadius * 2)) * (worldSize.x / (cellRadius * 2))) + ((i - cellRadius) / (cellRadius * 2));
 
 			//if it exists..
 			//if (indCell >= 0)

@@ -58,7 +58,7 @@ class Agent
 		void Caminhe(float time);
 		void CalculaDirecaoM();
 		void CalculaVelocidade(Vector3 groupCenter, float cohesion, float time);
-		void FindNearAuxins(float cellRadius, std::vector<Cell>* allCells, std::vector<Agent>* allAgents, float worldSizeX, float worldSizeZ);
+		void FindNearAuxins(float cellRadius, std::vector<Cell>* allCells, std::vector<Agent>* allAgents, Vector3 worldSize);
 		Cell* GetCell();
 		void SetCell(Cell* newCell);
 		void AddAuxin(Marker *newAuxin);

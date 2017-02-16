@@ -3,10 +3,8 @@ class Simulation
 {
 	//public attributes
 	public:
-		//scenario X
-		float scenarioSizeX;
-		//scenario Z
-		float scenarioSizeZ;
+		//world size
+		Vector3 worldSize;
 		//agent radius
 		float agentRadius;
 		//cell radius
@@ -100,7 +98,7 @@ class Simulation
 	//public methods
 	public:
 		Simulation();
-		Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int argcp, char **argv);
+		Simulation(Vector3 newWorldSize, float newCellRadius, int argcp, char **argv);
 		~Simulation();
 		void Update(double elapsed);
 		static float Distance(Vector3 start, Vector3 end);

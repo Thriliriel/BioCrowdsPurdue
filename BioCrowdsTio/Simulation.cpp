@@ -12,14 +12,13 @@ Simulation::~Simulation()
 	agentsGoalFile.close();
 }
 
-Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int argcp, char **argv) {
+Simulation::Simulation(Vector3 newWorldSize, float newCellRadius, int argcp, char **argv) {
 	//start with default values
 	DefaultValues();
 	
 	std::cout << "STARTING TO DEPLOY!!\n";
 
-	scenarioSizeX = mapSizeX;
-	scenarioSizeZ = mapSizeZ;
+	worldSize = newWorldSize;
 	cellRadius = newCellRadius;
 
 	//get all subdirectories within the defined config directory
@@ -277,9 +276,9 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 
 		//scenario boundaries
 		points.push_back(Vector3(0, 0, 0));
-		points.push_back(Vector3(0, 0, scenarioSizeZ));
-		points.push_back(Vector3(scenarioSizeX, 0, scenarioSizeZ));
-		points.push_back(Vector3(scenarioSizeX, 0, 0));
+		points.push_back(Vector3(0, 0, worldSize.z));
+		points.push_back(Vector3(worldSize.x, 0, worldSize.z));
+		points.push_back(Vector3(worldSize.x, 0, 0));
 
 		//add the points
 		for (int o = 0; o < obstacles.size(); o++) {
@@ -332,7 +331,7 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 		//goals repositioning
 		for (int i = 0; i < goals.size(); i++) {
 			//set his initial position based on the graph nodes
-			float distance = scenarioSizeX;
+			float distance = worldSize.x;
 			int index = -1;
 			for (int g = 0; g < graphNodesPos.size(); g++) {
 				float thisDistance = Distance(goals[i].position, graphNodesPos[g].position);
@@ -397,10 +396,8 @@ Simulation::Simulation(float mapSizeX, float mapSizeZ, float newCellRadius, int 
 }
 
 void Simulation::DefaultValues() {
-	//scenario X
-	scenarioSizeX = 30;
-	//scenario Z
-	scenarioSizeZ = 20;
+	//world size
+	worldSize = Vector3(30, 0, 20);
 	//agent radius
 	agentRadius = 1;
 	//cell radius
@@ -455,7 +452,7 @@ void Simulation::DefaultValues() {
 	//using A*?
 	useAStar = true;
 	//using Hofstede?
-	useHofstede = false;
+	useHofstede = true;
 }
 
 //start the simulation and control the update
@@ -469,7 +466,7 @@ void Simulation::StartSimulation(int argcp, char **argv) {
 	//Plot preparing
 	//need to create the attribute here, to refer later
 	// SFML window
-	sf::RenderWindow window(sf::VideoMode(scenarioSizeX+screenExtraSize, scenarioSizeZ+screenExtraSize), "BioCrowds");
+	sf::RenderWindow window(sf::VideoMode(worldSize.x+screenExtraSize, worldSize.z+screenExtraSize), "BioCrowds");
 
 	//if is not to plot, we close the window
 	if (!plot) {
@@ -511,18 +508,18 @@ void Simulation::StartSimulation(int argcp, char **argv) {
 				//world lines
 				linesWorld.push_back({ {
 						sf::Vertex(sf::Vector2f(0 + (screenExtraSize / 2), 0 + ((screenExtraSize / 2)))),
-						sf::Vertex(sf::Vector2f(0 + ((screenExtraSize / 2)), scenarioSizeZ + ((screenExtraSize / 2))))
+						sf::Vertex(sf::Vector2f(0 + ((screenExtraSize / 2)), worldSize.z + ((screenExtraSize / 2))))
 					} });
 				linesWorld.push_back({ {
-						sf::Vertex(sf::Vector2f(0 + ((screenExtraSize / 2)), scenarioSizeZ + ((screenExtraSize / 2)))),
-						sf::Vertex(sf::Vector2f(scenarioSizeX + ((screenExtraSize / 2)), scenarioSizeX + ((screenExtraSize / 2))))
+						sf::Vertex(sf::Vector2f(0 + ((screenExtraSize / 2)), worldSize.z + ((screenExtraSize / 2)))),
+						sf::Vertex(sf::Vector2f(worldSize.x + ((screenExtraSize / 2)), worldSize.x + ((screenExtraSize / 2))))
 					} });
 				linesWorld.push_back({ {
-						sf::Vertex(sf::Vector2f(scenarioSizeX + ((screenExtraSize / 2)), scenarioSizeZ + ((screenExtraSize / 2)))),
-						sf::Vertex(sf::Vector2f(scenarioSizeX + ((screenExtraSize / 2)), 0 + ((screenExtraSize / 2))))
+						sf::Vertex(sf::Vector2f(worldSize.x + ((screenExtraSize / 2)), worldSize.z + ((screenExtraSize / 2)))),
+						sf::Vertex(sf::Vector2f(worldSize.x + ((screenExtraSize / 2)), 0 + ((screenExtraSize / 2))))
 					} });
 				linesWorld.push_back({ {
-						sf::Vertex(sf::Vector2f(scenarioSizeX + ((screenExtraSize / 2)), 0 + ((screenExtraSize / 2)))),
+						sf::Vertex(sf::Vector2f(worldSize.x + ((screenExtraSize / 2)), 0 + ((screenExtraSize / 2)))),
 						sf::Vertex(sf::Vector2f(0 + ((screenExtraSize / 2)), 0 + ((screenExtraSize / 2))))
 					} });
 
@@ -1302,8 +1299,7 @@ void Simulation::LoadCellsAuxins() {
 				Split(line, ':', entries);
 				Split(entries[1], ',', Tsize);
 
-				scenarioSizeX = std::stof(Tsize[0]);
-				scenarioSizeZ = std::stof(Tsize[1]);
+				worldSize = Vector3(std::stof(Tsize[0]), 0, std::stof(Tsize[1]));
 			}
 			//in second line, we have the camera position
 			else if (lineCount == 2)
@@ -1454,9 +1450,9 @@ void Simulation::DrawCells()
 	//if the radius varies, this 2 operations adjust the cells
 	Vector3 newPosition(cellRadius, 0, cellRadius);
 
-	for (float j = 0; j < scenarioSizeZ; j = j + cellRadius * 2)
+	for (float j = 0; j < worldSize.z; j = j + cellRadius * 2)
 	{
-		for (float i = 0; i < scenarioSizeX; i = i + cellRadius * 2)
+		for (float i = 0; i < worldSize.x; i = i + cellRadius * 2)
 		{
 			//verify if collides with some obstacle. We dont need cells in objects.
 			//for that, we need to check all 4 sides of the cell. Otherwise, we may not have cells in some free spaces (for example, half of a cell would be covered by an obstacle, so that cell
@@ -1626,7 +1622,7 @@ void Simulation::SaveConfigFile() {
 	fileGoals.open(goalsFilename);
 
 	//first, we save the terrain dimensions
-	file << "terrainSize:" + std::to_string(scenarioSizeX) + "," + std::to_string(scenarioSizeZ) + "\n";
+	file << "terrainSize:" + std::to_string(worldSize.x) + "," + std::to_string(worldSize.z) + "\n";
 
 	//then, camera position and height
 	//just need to have the line, since camera is not used here
@@ -1746,7 +1742,7 @@ void Simulation::Update(double elapsed) {
 			for (int i = 0; i < agentsGroups[j].agents.size(); i++)
 			{
 				//find all auxins near him (Voronoi Diagram)
-				agentsGroups[j].agents[i].FindNearAuxins(cellRadius, &cells, &agentsGroups[j].agents, scenarioSizeX, scenarioSizeZ);
+				agentsGroups[j].agents[i].FindNearAuxins(cellRadius, &cells, &agentsGroups[j].agents, worldSize);
 			}
 		}
 		//std::cout << agents[0].GetAuxins().size() << "\n";
@@ -2142,7 +2138,6 @@ void Simulation::DrawObstacle(std::vector<Vector3> vertices, std::vector<int> tr
 }
 
 //check group vertices to find the corners
-//@TODO: JUST WORKS FOR 1 OBSTACLE! NEED TO SEE IF CAN DO FOR 2 OR MORE (not necessary for Purdue)
 //just work for 1 obstacle, so, deprecated
 void Simulation::CheckGroupVertices()
 {
@@ -2649,7 +2644,7 @@ void Simulation::GenerateLookingFor() {
 		//while i have an obstacle on the way
 		while (pCollider) {
 			//generate the new position
-			Vector3 newPosition(RandomFloat(0, scenarioSizeX), 0, RandomFloat(0, scenarioSizeZ));
+			Vector3 newPosition(RandomFloat(0, worldSize.x), 0, RandomFloat(0, worldSize.z));
 
 			//check if it is not inside an obstacle
 			bool pCollider = InsideObstacle(newPosition);
@@ -2671,20 +2666,20 @@ Vector3 Simulation::GeneratePosition(int groupIndex, bool useCenter) {
 		newPosition = agentsGroups[groupIndex].position;
 	}//else, rand
 	else {
-		//@TODO: mean dist is with weird values
-		//x = RandomFloat(agentsGroups[groupIndex].position.x - meanDist * 2, agentsGroups[groupIndex].position.x + meanDist * 2);
-		//z = RandomFloat(agentsGroups[groupIndex].position.z - meanDist * 2, agentsGroups[groupIndex].position.z + meanDist * 2);
-		newPosition.x = RandomFloat(agentsGroups[groupIndex].position.x - 0.2f, agentsGroups[groupIndex].position.x + 0.2f);
-		newPosition.z = RandomFloat(agentsGroups[groupIndex].position.z - 0.2f, agentsGroups[groupIndex].position.z + 0.2f);
+		newPosition.x = RandomFloat(agentsGroups[groupIndex].position.x - agentsGroups[groupIndex].GetHofstede().GetMeanDist() * 2, 
+			agentsGroups[groupIndex].position.x + agentsGroups[groupIndex].GetHofstede().GetMeanDist() * 2);
+		newPosition.z = RandomFloat(agentsGroups[groupIndex].position.z - agentsGroups[groupIndex].GetHofstede().GetMeanDist() * 2, 
+			agentsGroups[groupIndex].position.z + agentsGroups[groupIndex].GetHofstede().GetMeanDist() * 2);
+		//newPosition.x = RandomFloat(agentsGroups[groupIndex].position.x - 0.2f, agentsGroups[groupIndex].position.x + 0.2f);
+		//newPosition.z = RandomFloat(agentsGroups[groupIndex].position.z - 0.2f, agentsGroups[groupIndex].position.z + 0.2f);
 	}
 
 	//see if there are agents in this radius. if not, instantiante
 	bool pCollider = false;
 
 	for (int j = 0; j < agentsGroups[groupIndex].agents.size(); j++) {
-		//@TODO: mean dist is with weird values
-		//if (Distance(newPosition, agentsGroups[groupIndex].agents[j].position) < meanDist) {
-		if (Distance(newPosition, agentsGroups[groupIndex].agents[j].position) < 0.1f) {
+		if (Distance(newPosition, agentsGroups[groupIndex].agents[j].position) < agentsGroups[groupIndex].GetHofstede().GetMeanDist()) {
+		//if (Distance(newPosition, agentsGroups[groupIndex].agents[j].position) < 0.1f) {
 			pCollider = true;
 			break;
 		}
@@ -2720,7 +2715,7 @@ void Simulation::ChangeLookingFor(Goal* changeLF) {
 			changeLF->position = graphNodesPos[index].position;
 			break;
 		}else{
-			Vector3 newPosition((int)RandomFloat(0, scenarioSizeX), 0, (int)RandomFloat(0, scenarioSizeZ));
+			Vector3 newPosition((int)RandomFloat(0, worldSize.x), 0, (int)RandomFloat(0, worldSize.z));
 
 			//check if it is not inside an obstacle
 			bool pCollider = InsideObstacle(newPosition);
@@ -2886,8 +2881,8 @@ void Simulation::UnlockAgent(Agent* agentToUnlock) {
 
 		if (minX < 0) minX = 0;
 		if (minZ < 0) minZ = 0;
-		if (maxX > scenarioSizeX) maxX = scenarioSizeX;
-		if (maxZ > scenarioSizeZ) maxZ = scenarioSizeZ;
+		if (maxX > worldSize.x) maxX = worldSize.x;
+		if (maxZ > worldSize.z) maxZ = worldSize.z;
 
 		Vector3 newPosition((int)RandomFloat(minX, maxX), 0, (int)RandomFloat(minZ, maxZ));
 
@@ -2968,8 +2963,8 @@ void Simulation::AStarPath(AgentGroup* agentPath) {
 		AStarSearchNode nodeStart;
 
 		nodeStart.position = agentPath->position;
-		nodeStart.maxSizeX = scenarioSizeX;
-		nodeStart.maxSizeZ = scenarioSizeZ;
+		nodeStart.maxSizeX = worldSize.x;
+		nodeStart.maxSizeZ = worldSize.z;
 		nodeStart.graphNodes = &graphNodes;
 		nodeStart.nodeSize = nodeSize;
 		nodeStart.graphNodesPos = &graphNodesPos;
@@ -2977,8 +2972,8 @@ void Simulation::AStarPath(AgentGroup* agentPath) {
 		// Define the goal state
 		AStarSearchNode nodeEnd;
 		nodeEnd.position = agentPath->go[0]->position;
-		nodeEnd.maxSizeX = scenarioSizeX;
-		nodeEnd.maxSizeZ = scenarioSizeZ;
+		nodeEnd.maxSizeX = worldSize.x;
+		nodeEnd.maxSizeZ = worldSize.z;
 		nodeEnd.graphNodes = &graphNodes;
 		nodeEnd.nodeSize = nodeSize;
 		nodeEnd.graphNodesPos = &graphNodesPos;

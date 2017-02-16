@@ -18,9 +18,9 @@ int main(int argcp, char **argv)
 	srand(42);
 
 	//configure scenario
-	Simulation newSimulation(100, 100, 1, argcp, argv);
-	//Simulation newSimulation(1000, 1000, 5, argcp, argv);
-	//Simulation newSimulation(30, 20, 1, argcp, argv);
+	Simulation newSimulation(Vector3(100, 0, 100), 1, argcp, argv);
+	//Simulation newSimulation(Vector3(1000, 0, 1000), 5, argcp, argv);
+	//Simulation newSimulation(Vector3(30, 0, 20), 1, argcp, argv);
 
 	//system("PAUSE");
 
